@@ -1,0 +1,10 @@
+FROM node:22-alpine
+WORKDIR /app
+COPY package.json ./
+COPY server.js ./
+COPY public ./public
+COPY config ./config
+ENV PORT=3000 MAX_PLAYERS=6
+EXPOSE 3000
+USER node
+CMD ["node", "server.js"]

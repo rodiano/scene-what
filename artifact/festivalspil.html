@@ -1,0 +1,2018 @@
+<title>Festivalspillet</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* VOICE occasion: et familiespil
+   IDEA en festival om natten – kort, armbånd, plakat
+   PICTURE selve spillets kort i fuld skærm
+   COLOUR natlilla ground, pink/orange accenter
+   TYPE system-ui
+   LAYOUT spillet fylder skærmen; modaler som bundark på mobil */
+:root{color-scheme:dark}
+:root {
+  --bg: #1b1037;
+  --bg2: #2d1b5e;
+  --card: #fffaf0;
+  --ink: #23183f;
+  --muted: #6c6385;
+  --accent: #ff4f8b;
+  --accent2: #ffb627;
+  --ok: #1fae6b;
+  --bad: #e23d3d;
+  --radius: 18px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden;
+  background: radial-gradient(circle at 30% 10%, var(--bg2), var(--bg));
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+.hidden { display: none !important; }
+.screen { display: none; position: fixed; inset: 0; }
+.screen.active { display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+#game.screen.active { padding: 0; display: block; overflow: hidden; user-select: none; -webkit-user-select: none; }
+.sheet input, .sheet textarea { user-select: text; -webkit-user-select: text; }
+
+.card {
+  background: var(--card); border-radius: 24px; box-shadow: var(--shadow);
+  padding: 24px 20px; width: 100%; max-width: 440px; margin: auto;
+}
+.hero { text-align: center; }
+.logo { font-size: 64px; animation: bob 2s ease-in-out infinite; }
+h1 { margin: 4px 0; font-size: 30px; letter-spacing: 0.5px; }
+h2 { margin: 8px 0 14px; }
+h3 { margin: 0 0 12px; }
+.sub { color: var(--muted); margin: 6px 0 20px; line-height: 1.4; }
+.or { color: var(--muted); margin: 16px 0 8px; font-size: 14px; }
+.row { display: flex; gap: 8px; }
+.row input { flex: 1; min-width: 0; }
+input {
+  font: inherit; font-size: 18px; padding: 12px 14px; border-radius: 12px;
+  border: 2px solid #ddd2f0; background: #fff; color: var(--ink); width: 100%;
+}
+input:focus { outline: none; border-color: var(--accent); }
+#codeInput { text-transform: uppercase; letter-spacing: 4px; text-align: center; font-weight: 700; }
+label { display: block; font-weight: 600; margin-bottom: 12px; }
+label input { margin-top: 6px; font-weight: 400; }
+.label { font-weight: 600; margin: 8px 0 6px; }
+.btn {
+  font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 12px 16px;
+  background: #ece6f8; color: var(--ink); cursor: pointer; transition: transform 0.08s;
+}
+.btn:active { transform: scale(0.96); }
+.btn.primary { background: linear-gradient(135deg, var(--accent), #ff7a59); color: #fff; }
+.btn.big { width: 100%; font-size: 19px; padding: 15px; }
+.btn.small { padding: 6px 10px; font-size: 14px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.error { color: var(--bad); min-height: 1.2em; font-weight: 600; }
+.muted { color: var(--muted); font-size: 14px; }
+.resume { background: #f3edff; border-radius: 14px; padding: 12px; margin-bottom: 16px; }
+.resume p { margin: 0 0 10px; }
+.codebar { display: flex; align-items: center; gap: 8px; justify-content: center; background: #f3edff; padding: 8px; border-radius: 12px; }
+.codebar b { letter-spacing: 3px; font-size: 18px; }
+
+.grid { display: grid; gap: 8px; }
+.avatars { grid-template-columns: repeat(6, 1fr); }
+.avatars button { font-size: 28px; padding: 6px 0; border-radius: 12px; border: 3px solid transparent; background: #f3edff; cursor: pointer; }
+.avatars button.sel { border-color: var(--accent); background: #ffe3ee; }
+.avatars button.taken { opacity: 0.5; }
+.colors { grid-template-columns: repeat(8, 1fr); }
+.colors button { aspect-ratio: 1; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px #ddd; cursor: pointer; }
+.colors button.sel { box-shadow: 0 0 0 3px var(--ink); }
+.preview { text-align: center; margin: 14px 0 4px; }
+.avatar-preview { display: inline-flex; width: 76px; height: 76px; align-items: center; justify-content: center; font-size: 46px; border-radius: 50%; border: 5px solid; background: #fff; }
+
+/* ---------- Spil ---------- */
+#canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+#hudTop {
+  position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 8px) 8px 0; pointer-events: none; flex-wrap: wrap;
+}
+#hudTop > * { pointer-events: auto; }
+.hud-buttons { margin-left: auto; display: flex; gap: 6px; }
+.chip {
+  font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 8px 12px; cursor: pointer;
+  background: rgba(255, 250, 240, 0.94); color: var(--ink); box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+  position: relative; white-space: nowrap;
+}
+.chip b { letter-spacing: 2px; }
+.badge { background: var(--accent); color: #fff; border-radius: 999px; padding: 1px 7px; font-size: 12px; }
+#helpBtn { background: #ffe3e3; animation: pulse 1.2s infinite; }
+.objective {
+  order: 3; flex-basis: 100%; text-align: center; pointer-events: none !important;
+  color: #fff; font-weight: 700; text-shadow: 0 2px 4px #000, 0 0 2px #000; font-size: 15px; padding: 2px 8px;
+}
+#stampBar {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 10px);
+  background: rgba(255,250,240,0.94); border-radius: 999px; padding: 6px 14px; font-weight: 700;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.3); display: flex; gap: 6px; align-items: center; font-size: 15px; white-space: nowrap;
+}
+#stampBar .st { opacity: 0.3; filter: grayscale(1); }
+#stampBar .st.got { opacity: 1; filter: none; }
+.banner {
+  position: absolute; left: 50%; transform: translateX(-50%); top: 110px; width: min(92vw, 480px);
+  background: rgba(27, 16, 55, 0.92); color: #fff; border-radius: 16px; padding: 12px 14px; text-align: center;
+  box-shadow: var(--shadow); font-weight: 600; line-height: 1.4;
+}
+#toasts { position: absolute; left: 0; right: 0; top: 100px; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.toast {
+  background: rgba(255,250,240,0.96); padding: 8px 14px; border-radius: 12px; font-weight: 600; box-shadow: var(--shadow);
+  animation: toastIn 0.25s ease-out; max-width: 92vw; pointer-events: auto;
+}
+.toast button { margin-left: 8px; }
+#joystick {
+  position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
+  background: rgba(255,255,255,0.15); border: 3px solid rgba(255,255,255,0.5); pointer-events: none;
+}
+#knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(255,255,255,0.75); }
+.action {
+  position: absolute; right: 18px; bottom: calc(env(safe-area-inset-bottom) + 64px); width: 72px; height: 72px; border-radius: 50%;
+  border: 0; font-size: 34px; background: var(--accent2); box-shadow: var(--shadow); cursor: pointer; animation: pulse 1.2s infinite;
+}
+.controls-hint {
+  position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 56px); text-align: center; color: #fff;
+  font-size: 13px; text-shadow: 0 1px 3px #000; pointer-events: none; transition: opacity 1s;
+}
+@media (hover: none) { .desktop { display: none; } }
+
+/* ---------- Modaler ---------- */
+.modal { position: fixed; inset: 0; background: rgba(10, 5, 25, 0.55); display: flex; align-items: flex-end; justify-content: center; z-index: 20; }
+@media (min-width: 640px) { .modal { align-items: center; } }
+.sheet {
+  background: var(--card); width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; position: relative;
+  border-radius: 24px 24px 0 0; padding: 20px 18px calc(env(safe-area-inset-bottom) + 20px); box-shadow: var(--shadow);
+  animation: sheetIn 0.22s ease-out;
+}
+@media (min-width: 640px) { .sheet { border-radius: 24px; } }
+.close { position: absolute; right: 10px; top: 10px; border: 0; background: #ece6f8; width: 36px; height: 36px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+.post-title { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; margin-bottom: 12px; padding-right: 40px; }
+.post-emoji { font-size: 36px; }
+.qtext { font-size: 18px; line-height: 1.45; margin: 0 0 14px; font-weight: 600; }
+.options { display: grid; gap: 8px; margin-bottom: 12px; }
+.options button { text-align: left; font-size: 17px; padding: 14px; background: #f3edff; }
+.options button.wrong { background: #ffd9d9; text-decoration: line-through; opacity: 0.7; }
+.options button.right { background: #c9f5dd; }
+.options button .tag { font-size: 12px; background: var(--accent2); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+.feedback { min-height: 1.4em; font-weight: 700; margin: 4px 0 10px; }
+.feedback.bad { color: var(--bad); animation: shake 0.3s; }
+.feedback.good { color: var(--ok); }
+.hints { margin: 8px 0; padding: 0; list-style: none; }
+.hints li { background: #fff3cf; border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; }
+.helpers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.helpers .btn { flex: 1; }
+.suggestions { margin-top: 12px; }
+.suggestions .s { background: #e5f6ff; border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; }
+.note { background: #f3edff; padding: 10px 12px; border-radius: 12px; font-size: 14px; color: var(--muted); margin-top: 10px; }
+.success { text-align: center; padding: 10px 0; }
+.success .big-emoji { font-size: 64px; animation: pop 0.4s ease-out; }
+
+.help-item { border: 2px solid #ece6f8; border-radius: 16px; padding: 12px; margin-bottom: 12px; }
+.help-item.done { opacity: 0.6; }
+.help-item h4 { margin: 0 0 8px; }
+
+#teamList .member { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: #f6f2ff; margin-bottom: 8px; }
+.member .av { font-size: 28px; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 3px solid; background: #fff; flex-shrink: 0; }
+.member .info { flex: 1; min-width: 0; }
+.member .info small { color: var(--muted); display: block; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #bbb; flex-shrink: 0; }
+.dot.on { background: var(--ok); }
+.share-box { text-align: center; margin-top: 14px; }
+.code-big { letter-spacing: 4px; font-size: 20px; }
+
+.chat-sheet { display: flex; flex-direction: column; height: 70vh; }
+#chatList { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+.msg { margin-bottom: 8px; }
+.msg .who { font-weight: 700; font-size: 13px; }
+.msg .txt { background: #f3edff; display: inline-block; padding: 7px 11px; border-radius: 12px; margin-top: 2px; word-break: break-word; }
+.msg.me { text-align: right; }
+.msg.me .txt { background: #ffe3ee; }
+
+/* ---------- Plakat ---------- */
+.poster-sheet { background: #120a28; color: #fff; }
+.poster-sheet .close { background: rgba(255,255,255,0.15); color: #fff; }
+.poster {
+  text-align: center; padding: 18px 10px; border-radius: 16px;
+  background: linear-gradient(160deg, #ff4f8b 0%, #7b2ff7 50%, #1e0f45 100%);
+  position: relative; overflow: hidden;
+}
+.poster::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0 10px, transparent 10px 20px); pointer-events: none; }
+.poster .pname { font-weight: 900; letter-spacing: 2px; margin: 8px 0 4px; word-break: break-word; }
+.poster .pname .hidden-letter { display: inline-block; min-width: 0.7em; color: rgba(255,255,255,0.25); }
+.poster .pname .shown-letter { animation: pop 0.4s; display: inline-block; }
+.poster .tagline { font-style: italic; opacity: 0.9; min-height: 1.2em; }
+.poster .meta { display: flex; justify-content: center; gap: 12px; margin: 10px 0; flex-wrap: wrap; font-weight: 700; }
+.poster .meta span { background: rgba(0,0,0,0.25); padding: 4px 10px; border-radius: 8px; }
+.poster .headliner-box { margin: 16px 0 10px; padding: 14px; border: 3px dashed rgba(255,255,255,0.6); border-radius: 14px; font-weight: 900; font-size: 24px; letter-spacing: 2px; }
+.poster .headliner-box.revealed { border-style: solid; background: rgba(255,182,39,0.25); font-size: 30px; animation: pop 0.6s; }
+.poster .lineup { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-weight: 700; }
+.poster .lineup div { background: rgba(0,0,0,0.25); padding: 8px 6px; border-radius: 8px; }
+.poster .lineup .q { color: rgba(255,255,255,0.35); }
+.poster-progress { margin-top: 14px; }
+.bar { height: 10px; background: rgba(255,255,255,0.15); border-radius: 999px; overflow: hidden; }
+.bar > div { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width 0.6s; }
+.poster-progress p { font-size: 13px; opacity: 0.8; margin: 6px 0 0; }
+
+/* ---------- Finale ---------- */
+#finale { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(5, 2, 15, 0.7); padding: 16px; overflow-y: auto; }
+.finale-inner { width: 100%; max-width: 520px; text-align: center; color: #fff; margin: auto; }
+.teaser { font-size: 20px; opacity: 0; animation: fadeIn 1s 0.3s forwards; }
+.headliner { font-size: clamp(36px, 12vw, 64px); font-weight: 900; letter-spacing: 4px; margin: 10px 0 20px; opacity: 0;
+  animation: reveal 1.4s 2.2s forwards; text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent2); }
+#finalePoster { opacity: 0; animation: fadeIn 1s 3.6s forwards; }
+.finale-msg { font-size: 18px; opacity: 0; animation: fadeIn 1s 4.2s forwards; }
+#finaleClose { opacity: 0; animation: fadeIn 1s 4.6s forwards; }
+
+@keyframes bob { 50% { transform: translateY(-8px); } }
+@keyframes pulse { 50% { transform: scale(1.07); } }
+@keyframes toastIn { from { transform: translateY(-10px); opacity: 0; } }
+@keyframes sheetIn { from { transform: translateY(30px); opacity: 0; } }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@keyframes pop { 0% { transform: scale(0.3); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes fadeIn { to { opacity: 1; } }
+@keyframes reveal { 0% { opacity: 0; transform: scale(0.2) rotate(-8deg); filter: blur(12px); } 100% { opacity: 1; transform: none; filter: none; } }
+
+</style>
+
+  <!-- LOBBY -->
+  <section id="lobby" class="screen active">
+    <div class="card hero">
+      <div class="logo">🎪</div>
+      <h1>Festivalspillet</h1>
+      <p class="sub">Find vej gennem festivalen sammen med dit hold.<br />Hvad venter mon bag det store hegn…?</p>
+
+      <div id="resumeBox" class="resume hidden">
+        <p>Du er allerede med i spillet <b id="resumeCode"></b></p>
+        <button id="resumeBtn" class="btn primary big">▶ Fortsæt</button>
+      </div>
+
+      <button id="createBtn" class="btn primary big">✨ Start et nyt spil</button>
+      <div class="or">eller deltag med en kode</div>
+      <form id="joinForm" class="row">
+        <input id="codeInput" maxlength="6" placeholder="KODE" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+        <button class="btn">Deltag</button>
+      </form>
+      <p id="lobbyError" class="error"></p>
+      <p class="muted">Demo-version: dine medspillere skal åbne denne samme side og skrive koden.</p>
+    </div>
+  </section>
+
+  <!-- KARAKTERVALG -->
+  <section id="character" class="screen">
+    <div class="card">
+      <div class="codebar">Spil-kode: <b id="charCode"></b> <button id="charShare" class="btn small">📋 Kopiér</button></div>
+      <h2>Lav din festivalgænger</h2>
+      <label>Dit navn
+        <input id="nameInput" maxlength="16" placeholder="Fx Maja" autocomplete="nickname" />
+      </label>
+      <div class="label">Vælg figur</div>
+      <div id="avatarGrid" class="grid avatars"></div>
+      <div class="label">Vælg farve</div>
+      <div id="colorGrid" class="grid colors"></div>
+      <div class="preview"><span id="preview" class="avatar-preview">🧑‍🎤</span></div>
+      <p id="charInfo" class="muted"></p>
+      <button id="joinBtn" class="btn primary big">🎟️ Gå til festivalen</button>
+      <p id="charError" class="error"></p>
+    </div>
+  </section>
+
+  <!-- SPIL -->
+  <section id="game" class="screen">
+    <canvas id="canvas"></canvas>
+
+    <div id="hudTop">
+      <button id="codeChip" class="chip" title="Del koden">🔑 <b id="hudCode"></b></button>
+      <div id="objective" class="objective"></div>
+      <div class="hud-buttons">
+        <button id="posterBtn" class="chip">🧩 <span id="posterCount">0</span></button>
+        <button id="teamBtn" class="chip">👥 <span id="teamCount">1</span></button>
+        <button id="helpBtn" class="chip hidden">🆘 <span id="helpCount" class="badge">0</span></button>
+        <button id="chatBtn" class="chip">💬 <span id="chatBadge" class="badge hidden">0</span></button>
+      </div>
+    </div>
+
+    <div id="stampBar"></div>
+    <div id="stageBanner" class="banner hidden"></div>
+    <div id="toasts"></div>
+
+    <div id="joystick" class="hidden"><div id="knob"></div></div>
+    <button id="actionBtn" class="action hidden">❓</button>
+    <div id="controlsHint" class="controls-hint">Træk på skærmen for at gå · Tryk på en post for at åbne den<br /><span class="desktop">Tastatur: piletaster/WASD · E = interagér</span></div>
+  </section>
+
+  <!-- SPØRGSMÅL -->
+  <div id="qModal" class="modal hidden">
+    <div class="sheet">
+      <button class="close" data-close="qModal">✕</button>
+      <div class="post-title"><span id="qEmoji" class="post-emoji"></span><span id="qTitle"></span></div>
+      <div id="qBody"></div>
+    </div>
+  </div>
+
+  <!-- HJÆLP TIL MEDSPILLER -->
+  <div id="helpModal" class="modal hidden">
+    <div class="sheet">
+      <button class="close" data-close="helpModal">✕</button>
+      <h3>🆘 Holdet har brug for hjælp</h3>
+      <div id="helpList"></div>
+    </div>
+  </div>
+
+  <!-- PLAKAT -->
+  <div id="posterModal" class="modal hidden">
+    <div class="sheet poster-sheet">
+      <button class="close" data-close="posterModal">✕</button>
+      <div id="poster"></div>
+    </div>
+  </div>
+
+  <!-- HOLD -->
+  <div id="teamModal" class="modal hidden">
+    <div class="sheet">
+      <button class="close" data-close="teamModal">✕</button>
+      <h3>👥 Dit hold</h3>
+      <div id="teamList"></div>
+      <div class="share-box">
+        <p>Inviter flere med koden <b class="code-big" id="teamCode"></b></p>
+        <button id="teamShare" class="btn">📋 Kopiér kode</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div id="chatModal" class="modal hidden">
+    <div class="sheet chat-sheet">
+      <button class="close" data-close="chatModal">✕</button>
+      <h3>💬 Holdchat</h3>
+      <div id="chatList"></div>
+      <form id="chatForm" class="row">
+        <input id="chatInput" maxlength="200" placeholder="Skriv til holdet…" autocomplete="off" />
+        <button class="btn primary">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- FINALE -->
+  <div id="finale" class="hidden">
+    <div class="finale-inner">
+      <div id="finaleTeaser" class="teaser"></div>
+      <div id="finaleHeadliner" class="headliner"></div>
+      <div id="finalePoster"></div>
+      <p id="finaleMsg" class="finale-msg"></p>
+      <button id="finaleClose" class="btn">Se koncerten 🎶</button>
+    </div>
+  </div>
+
+  
+<script>
+{
+const FESTIVAL_DATA = {"festivalName": "SOLSKINSFESTIVALEN", "tagline": "Tre dage med musik, mad og venner", "date": "19.–21. juni", "place": "Engen bag skoven", "lineup": ["De Glade Trommer", "Kaptajn Kazoo", "Månekatten", "Svedbåndet", "Lille Lørdag", "Bølgebryderne"], "headliner": "STJERNESKUD", "headlinerTeaser": "Aftenens hemmelige hovednavn er...", "finaleMessage": "Tak fordi I hjalp hinanden hele vejen frem. Rock on! 🤘", "stampsRequired": 3};
+const QUESTIONS_DATA = {"billet": [{"q": "Hvad hedder Danmarks største musikfestival, som holdes hvert år ved en by på Sjælland?", "type": "choice", "options": ["Smukfest", "Roskilde Festival", "Tinderbox", "Grøn Koncert"], "answer": 1, "hints": ["Festivalen har samme navn som byen.", "Byen er kendt for sin domkirke og sine vikingeskibe."]}, {"q": "Hvad skal man som regel vise ved indgangen for at komme ind på en festival?", "type": "choice", "options": ["Sin madpakke", "Sin billet", "Sit sygesikringskort", "Sine sko"], "answer": 1, "hints": ["Det er noget, man har købt på forhånd.", "Det hedder også en 'adgangs...'"]}, {"q": "I hvilken by holdes festivalen Smukfest?", "type": "choice", "options": ["Aalborg", "Odense", "Skanderborg", "Esbjerg"], "answer": 2, "hints": ["Byen ligger i Østjylland.", "Festivalen foregår i en bøgeskov kaldet Dyrehaven."]}, {"q": "En billet koster 450 kr. Hvad koster 3 billetter? (skriv tallet)", "type": "text", "answers": ["1350", "1.350", "1350 kr", "1.350 kr"], "hints": ["Prøv at regne 3 × 400 og 3 × 50 hver for sig.", "1200 + 150 = ?"]}], "armbaand": [{"q": "Mange festivalarmbånd har en chip, så man kan betale med dem. Hvilken teknologi bruges også i mobiler, når man betaler ved at holde dem hen til en terminal?", "type": "choice", "options": ["GPS", "NFC", "Bluetooth", "Wi-Fi"], "answer": 1, "hints": ["Det er tre bogstaver.", "Det står for 'Near Field Communication'."]}, {"q": "Hvor mange armbånd skal der bruges til en familie med 2 voksne og 3 børn?", "type": "text", "answers": ["5", "fem"], "hints": ["Alle skal have hvert sit.", "2 + 3 = ?"]}, {"q": "Hvilken af disse ting bærer man IKKE om håndleddet?", "type": "choice", "options": ["Armbånd", "Armbåndsur", "Halskæde", "Svedbånd"], "answer": 2, "hints": ["Kig på ordene – hvor sidder tingen?", "'Hals' sidder ikke på armen."]}, {"q": "Festivalen varer fra torsdag til søndag. Hvor mange dage er det, når begge dage tæller med?", "type": "text", "answers": ["4", "fire"], "hints": ["Tæl: torsdag, fredag, ...", "Torsdag, fredag, lørdag, søndag."]}], "parkering": [{"q": "Hvad betyder et blåt skilt med et stort hvidt P?", "type": "choice", "options": ["Politi", "Parkering", "Posthus", "Picnicplads"], "answer": 1, "hints": ["Du står lige ved siden af et.", "Her må man stille bilen."]}, {"q": "Parkeringspladsen har 12 rækker med plads til 25 biler i hver. Hvor mange biler er der plads til?", "type": "text", "answers": ["300"], "hints": ["4 rækker med 25 biler er 100 biler.", "12 rækker er 3 gange så mange som 4 rækker."]}, {"q": "Hvilken farve i et lyskryds betyder STOP?", "type": "choice", "options": ["Grøn", "Gul", "Rød", "Blå"], "answer": 2, "hints": ["Det er den øverste lampe.", "Samme farve som et jordbær."]}, {"q": "Hvad kalder man det, når flere personer deler én bil for at komme til festivalen?", "type": "choice", "options": ["Rundkørsel", "Samkørsel", "Bilkø", "Overhaling"], "answer": 1, "hints": ["Man kører 'sammen'.", "Ordet starter med 'Sam-'."]}], "taske": [{"q": "Hvad er smart at have i tasken, hvis det begynder at regne?", "type": "choice", "options": ["Snorkel", "Regnslag", "Skøjter", "Solbriller"], "answer": 1, "hints": ["Det holder dig tør.", "Det er en slags tynd jakke af plastik."]}, {"q": "Hvorfor er glasflasker ofte forbudt på festivaler?", "type": "choice", "options": ["De smager dårligt", "De kan gå i stykker, og folk kan skære sig", "De er for dyre", "De larmer for meget"], "answer": 1, "hints": ["Tænk på bare tæer i græsset.", "Hvad sker der, når glas bliver tabt?"]}, {"q": "Hvad er en 'powerbank'?", "type": "choice", "options": ["En bank for stærke folk", "Et ekstra batteri til at lade mobilen op", "En energidrik", "En højttaler"], "answer": 1, "hints": ["'Power' betyder strøm.", "Den er god, når mobilen er ved at løbe tør."]}, {"q": "Hvilken solfaktor beskytter MEST mod solen?", "type": "choice", "options": ["6", "15", "30", "50"], "answer": 3, "hints": ["Jo højere tal, jo mere beskyttelse.", "Vælg det største tal."]}], "cykel": [{"q": "Hvor mange hjul har en tandemcykel?", "type": "text", "answers": ["2", "to"], "hints": ["På en tandem sidder to personer – men tæl hjulene.", "Den har lige så mange hjul som en almindelig cykel."]}, {"q": "Hvad skal man have tændt på cyklen, når man cykler i mørke?", "type": "choice", "options": ["Ringeklokken", "Lygter", "Kurven", "Støttebenet"], "answer": 1, "hints": ["Så andre kan se dig.", "De lyser hvidt foran og rødt bagpå."]}, {"q": "Hvad hedder Danmarks hovedstad, som er kendt som en af verdens bedste cykelbyer?", "type": "text", "answers": ["københavn", "kobenhavn", "kbh", "copenhagen"], "hints": ["Byen har Tivoli og Den Lille Havfrue.", "Den starter med K."]}, {"q": "Hvad bruger man en cykelpumpe til?", "type": "choice", "options": ["At pumpe luft i dækkene", "At smøre kæden", "At låse cyklen", "At ringe med klokken"], "answer": 0, "hints": ["Tænk på et fladt dæk.", "Den puster noget ind."]}], "pant": [{"q": "Hvor meget pant er der på en almindelig dåse sodavand (A-pant) i Danmark?", "type": "choice", "options": ["50 øre", "1 kr.", "3 kr.", "5 kr."], "answer": 1, "hints": ["Det er den mindste pantsats.", "Det er en hel krone."]}, {"q": "Hvad bliver tomme aluminiumsdåser oftest lavet om til, når de genbruges?", "type": "choice", "options": ["Brød", "Nye dåser", "Glasflasker", "Papir"], "answer": 1, "hints": ["Aluminium kan smeltes om igen og igen.", "Man laver det samme igen."]}, {"q": "Du afleverer 8 dåser med 1 kr. i pant og 2 store flasker med 3 kr. i pant. Hvor mange kroner får du?", "type": "text", "answers": ["14", "14 kr", "14 kr."], "hints": ["Dåserne giver 8 kr.", "8 + 2 × 3 = ?"]}, {"q": "Hvilket symbol viser ofte, at noget kan genbruges?", "type": "choice", "options": ["Et hjerte", "Tre pile i en trekant", "En stjerne", "Et udråbstegn"], "answer": 1, "hints": ["Det viser noget, der går rundt og rundt.", "Pilene følger efter hinanden."]}], "camping": [{"q": "Hvad kalder man de små pinde, der holder teltet fast i jorden?", "type": "choice", "options": ["Teltstænger", "Teltpløkker", "Kroge", "Spyd"], "answer": 1, "hints": ["Man banker dem ned med en hammer.", "Ordet ender på '-pløkker'."]}, {"q": "Hvad hedder den 'pose', man sover i, når man camperer?", "type": "text", "answers": ["sovepose", "soveposen", "en sovepose"], "hints": ["Den kan lynes.", "Sove + pose."]}, {"q": "Hvilket dyr bærer sit hus på ryggen?", "type": "choice", "options": ["Snegl", "Mus", "Ræv", "Ugle"], "answer": 0, "hints": ["Den er meget langsom.", "Den elsker regnvejr og salat."]}, {"q": "I hvilken retning står solen op?", "type": "choice", "options": ["Nord", "Syd", "Øst", "Vest"], "answer": 2, "hints": ["Det er IKKE der, hvor den går ned.", "Solen står op i ø..."]}], "vand": [{"q": "Hvor meget af en voksen krop består cirka af vand?", "type": "choice", "options": ["Ca. 10 %", "Ca. 30 %", "Ca. 60 %", "Ca. 90 %"], "answer": 2, "hints": ["Det er mere end halvdelen.", "Men ikke næsten det hele."]}, {"q": "Hvad hedder vand, når det er frosset til fast form?", "type": "text", "answers": ["is"], "hints": ["Man putter det i sodavand.", "To bogstaver."]}, {"q": "Ved hvor mange grader koger vand (ved havets overflade)?", "type": "text", "answers": ["100", "100 grader", "100°"], "hints": ["Det er et rundt tal.", "Det er et tal med tre cifre."]}, {"q": "Hvad er den kemiske formel for vand?", "type": "choice", "options": ["CO2", "H2O", "O2", "NaCl"], "answer": 1, "hints": ["Der er brint (H) i.", "To H'er og et O."]}], "mad": [{"q": "Hvilket land kommer pizza oprindeligt fra?", "type": "choice", "options": ["USA", "Italien", "Frankrig", "Tyrkiet"], "answer": 1, "hints": ["Landet ligner en støvle på kortet.", "Hovedstaden er Rom."]}, {"q": "Hvad bliver pommes frites lavet af?", "type": "choice", "options": ["Gulerødder", "Kartofler", "Majs", "Ris"], "answer": 1, "hints": ["Det vokser under jorden.", "Man kan også lave mos af det."]}, {"q": "Hvilken ret blev i 2014 stemt ind som Danmarks nationalret?", "type": "choice", "options": ["Frikadeller", "Smørrebrød", "Stegt flæsk med persillesovs", "Æbleskiver"], "answer": 2, "hints": ["Den er sprød og serveres med kartofler.", "Sovsen er grøn af en krydderurt."]}, {"q": "Hvad er hovedingrediensen i guacamole?", "type": "choice", "options": ["Avocado", "Tomat", "Agurk", "Ærter"], "answer": 0, "hints": ["Den er grøn indeni og har en stor sten.", "Den starter med A."]}, {"q": "En burger koster 75 kr. og en sodavand 25 kr. Hvad koster 2 burgere og 2 sodavand?", "type": "text", "answers": ["200", "200 kr", "200 kr."], "hints": ["Én burger og én sodavand koster 100 kr.", "Det skal ganges med 2."]}, {"q": "Hvilken frugt er gul, bøjet og meget populær hos aber?", "type": "text", "answers": ["banan", "bananer", "en banan"], "hints": ["Man skræller den.", "B-a-n-..."]}], "merch": [{"q": "Hvad er 'merch' en forkortelse for?", "type": "choice", "options": ["Merchandise", "Merci", "Mercedes", "Mermaid"], "answer": 0, "hints": ["Det er de ting, bandet sælger.", "Det betyder 'varer'."]}, {"q": "En T-shirt koster 200 kr., men er sat 25 % ned. Hvad koster den nu?", "type": "text", "answers": ["150", "150 kr", "150 kr."], "hints": ["25 % er det samme som en fjerdedel.", "En fjerdedel af 200 er 50."]}, {"q": "Hvilken T-shirt-størrelse er størst?", "type": "choice", "options": ["S", "M", "L", "XL"], "answer": 3, "hints": ["S = small, L = large.", "X betyder 'ekstra'."]}, {"q": "Hvad kalder man listen over alle bands, der spiller på en festival?", "type": "choice", "options": ["Setlisten", "Line-uppen (programmet)", "Soundchecket", "Backstage"], "answer": 1, "hints": ["Den står ofte på festivalplakaten.", "Bandsene står 'på linje'."]}, {"q": "Hvad kalder man en trøje med hætte?", "type": "text", "answers": ["hættetrøje", "haettetrøje", "hoodie", "hættetrøjen", "en hættetrøje"], "hints": ["På engelsk hedder den en 'hoodie'.", "Hætte + trøje."]}, {"q": "Hvilken farve får man, hvis man blander blå og gul?", "type": "choice", "options": ["Lilla", "Orange", "Grøn", "Brun"], "answer": 2, "hints": ["Samme farve som græs.", "Samme farve som bladene på træerne om sommeren."]}], "bar": [{"q": "Hvilken frugt laves lemonade traditionelt af?", "type": "choice", "options": ["Appelsin", "Citron", "Æble", "Jordbær"], "answer": 1, "hints": ["Den er gul og sur.", "'Lemon' på engelsk."]}, {"q": "Hvad er en 'mocktail'?", "type": "choice", "options": ["En drink uden alkohol", "En slags kage", "En dans", "En sodavandsautomat"], "answer": 0, "hints": ["'Mock' betyder 'lade som om'.", "Den ligner en cocktail, men..."]}, {"q": "Hvad laves hyldeblomstsaft af?", "type": "choice", "options": ["Æbler", "Blomster fra hyldebusken", "Rabarber", "Citroner"], "answer": 1, "hints": ["Svaret står næsten i navnet.", "Det er hvide skærme, som plukkes i juni."]}, {"q": "Hvor mange centiliter er der i én liter?", "type": "text", "answers": ["100"], "hints": ["'Centi' betyder en hundrededel.", "Det er et rundt tal."]}, {"q": "Hvilken gas giver boblerne i sodavand?", "type": "choice", "options": ["Ilt", "Kuldioxid (CO2)", "Helium", "Brint"], "answer": 1, "hints": ["Det er den samme gas, vi ånder ud.", "Den kemiske formel er CO2."]}, {"q": "Hvad kalder man en person, der laver drinks bag en bar?", "type": "text", "answers": ["bartender", "bartenderen", "en bartender", "tjener"], "hints": ["Ordet starter med 'bar'.", "Bar + ten + der."]}], "telt": [{"q": "Hvor mange strenge har en almindelig guitar?", "type": "text", "answers": ["6", "seks"], "hints": ["Det er flere end 4, som en bas har.", "Det er det samme tal som sider på en terning."]}, {"q": "Hvilket instrument har sorte og hvide tangenter?", "type": "choice", "options": ["Trompet", "Klaver", "Violin", "Fløjte"], "answer": 1, "hints": ["Man spiller på det med alle ti fingre.", "Det kaldes også et piano."]}, {"q": "Hvad kalder man den person, der står forrest og synger i et band?", "type": "choice", "options": ["Trommeslager", "Forsanger", "Lydmand", "Roadie"], "answer": 1, "hints": ["Personen står ved mikrofonen.", "Personen står 'for' bandet og synger."]}, {"q": "Hvad hedder det instrument, der består af stortromme, lilletromme og bækkener?", "type": "choice", "options": ["Trommesæt", "Xylofon", "Harmonika", "Tuba"], "answer": 0, "hints": ["Man spiller på det med stikker.", "Trommer + sæt."]}, {"q": "Hvad hedder den ekstra sang, et band spiller, når publikum råber på mere?", "type": "choice", "options": ["Ekstranummer", "Soundcheck", "Intro", "Pause"], "answer": 0, "hints": ["På engelsk hedder det 'encore'.", "Det er et 'ekstra' nummer."]}, {"q": "Hvor mange medlemmer var der i The Beatles?", "type": "text", "answers": ["4", "fire"], "hints": ["John, Paul, George og ...", "Ringo var den sidste."]}], "info": [{"q": "Hvilket nummer ringer man til i Danmark, hvis der sker en alvorlig ulykke?", "type": "text", "answers": ["112", "1-1-2", "1 1 2"], "hints": ["Det er tre cifre.", "1-1-..."]}, {"q": "Hvad er det bedste at gøre, hvis man bliver væk fra sine venner på festivalen?", "type": "choice", "options": ["Gå hjem", "Gå til info-teltet eller jeres aftalte mødested", "Kravle op på scenen", "Gemme sig i et telt"], "answer": 1, "hints": ["Der er et sted, hvor de voksne kan hjælpe.", "Du står lige ved det."]}, {"q": "Hvad står HLR for?", "type": "choice", "options": ["Hurtig Lyd og Rytme", "Hjerte-Lunge-Redning", "Høj Lyd Regler", "Hjælp Langs Ruten"], "answer": 1, "hints": ["Det er førstehjælp.", "To organer i brystet + det at redde nogen."]}, {"q": "Hvad kan man bruge til at beskytte ørerne mod høj musik?", "type": "choice", "options": ["Ørepropper", "Solbriller", "Handsker", "Plaster"], "answer": 0, "hints": ["Man putter dem i ørerne.", "Øre + propper."]}, {"q": "Hvad er en hjertestarter?", "type": "choice", "options": ["En sang", "En maskine, der kan give et stød til et hjerte, der er gået i stå", "En energidrik", "Den første koncert på festivalen"], "answer": 1, "hints": ["Den hænger tit i et grønt skab.", "Den hjælper, når nogen falder om."]}, {"q": "Hvilket symbol bruger Røde Kors?", "type": "choice", "options": ["En grøn stjerne", "Et rødt kors på hvid baggrund", "En blå cirkel", "Et gult hjerte"], "answer": 1, "hints": ["Svaret står i navnet.", "Rødt + kors."]}], "toilet": [{"q": "Der står 18 personer i toiletkøen. Der er 3 toiletter, og hvert besøg tager 2 minutter. Hvor mange minutter går der, før køen er væk?", "type": "text", "answers": ["12", "12 min", "12 minutter"], "hints": ["Hvert toilet skal klare 18 / 3 = 6 personer.", "6 personer × 2 minutter = ?"]}, {"q": "Hvad er 'WC' en forkortelse for?", "type": "choice", "options": ["Water Closet", "Wild Camping", "World Cup", "Wet Chair"], "answer": 0, "hints": ["Det er engelsk.", "Det har med vand at gøre."]}, {"q": "Hvor længe skal man mindst vaske hænder for at få dem rigtig rene?", "type": "choice", "options": ["2 sekunder", "Ca. 20 sekunder", "5 minutter", "1 time"], "answer": 1, "hints": ["Det tager lige så lang tid som at synge 'I dag er det ...' to gange.", "Mere end et øjeblik, men under et minut."]}, {"q": "Hvorfor skal man vaske hænder efter toiletbesøg?", "type": "choice", "options": ["For at fjerne bakterier", "For at få varme hænder", "Fordi sæben dufter godt", "Det skal man ikke"], "answer": 0, "hints": ["Det handler om at undgå at blive syg.", "Små usynlige ting..."]}, {"q": "Hvilket af disse ord kan læses både forfra og bagfra?", "type": "choice", "options": ["Toilet", "Telt", "Kajak", "Scene"], "answer": 2, "hints": ["Prøv at stave ordene baglæns.", "Det er en slags båd."]}, {"q": "Hvad kalder man papiret på rullen ved siden af toilettet?", "type": "text", "answers": ["toiletpapir", "toiletpapiret", "wc-papir", "wc papir"], "hints": ["Det er papir til toilettet.", "Toilet + papir."]}], "finale": [{"q": "Hvad kalder man området bag scenen, hvor musikerne gør sig klar?", "type": "choice", "options": ["Backstage", "Frontstage", "Garderoben", "Moshpit"], "answer": 0, "hints": ["Det er engelsk.", "'Back' betyder bag."]}, {"q": "Hvad kalder man det, når bandet tester lyden inden koncerten?", "type": "choice", "options": ["Soundcheck", "Encore", "Playback", "Remix"], "answer": 0, "hints": ["'Sound' betyder lyd.", "Man 'checker' lyden."]}, {"q": "Hvad kalder man festivalens største navn, som ofte spiller sidst?", "type": "choice", "options": ["Opvarmningen", "Hovednavnet", "Roadien", "DJ'en"], "answer": 1, "hints": ["På engelsk: 'headliner'.", "Det står øverst på plakaten."]}, {"q": "Hvad hedder listen over de sange, et band skal spille til en koncert?", "type": "choice", "options": ["Line-up", "Setliste", "Indkøbsliste", "Playliste"], "answer": 1, "hints": ["Den ligger tit tapet fast på scenegulvet.", "Ordet starter med 'Set-'."]}, {"q": "Hvad kalder man det, når publikum bærer en person hen over hovederne?", "type": "choice", "options": ["Crowdsurfing", "Stagediving", "Headbanging", "Moonwalk"], "answer": 0, "hints": ["Det ligner noget, man gør på bølger.", "Crowd + surfing."]}, {"q": "Hvad kalder man det band, der spiller FØR hovednavnet for at få publikum i gang?", "type": "choice", "options": ["Opvarmningsbandet", "Coverbandet", "Pausebandet", "Garagebandet"], "answer": 0, "hints": ["De gør publikum 'varme'.", "Opvarm..."]}]};
+// Delt verdensdefinition – bruges af både server og browser.
+// Kortet kan redigeres direkte. Tegnforklaring:
+//  .  græs          ,  sti            =  vej/asfalt     :  pladsen foran hovedscenen
+//  #  hegn          T  træ            ~  vand           S  scene / højttalertårn
+//  B  bod/telt      K  bil            R  cykelstativ    X  telt (camping)
+//  1-9 bomme (spørgsmål for at komme videre)
+//  f m b t i w  festivalposter (spørgsmål giver stempler)
+// Bemærk: Rigtige svar, festivalnavn og bands ligger KUN på serveren (config/).
+
+const TILE = 32;
+
+const MAP = [
+    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+    "T............#:SS:SSSSSSSSSSSSSS:SS:#............T",
+    "T............#:SS:SSSSSSSSSSSSSS:SS:#============T",
+    "T============#:SS:SSSSSSSSSSSSSS:SS:#.....,,.....T",
+    "T.....,,.....#::::::::::::::::::::::#.....,,.....T",
+    "T..BBB,,.....#::::::::::::::::::::::#.....,,.....T",
+    "T.....,,..T..#::::::::::::::::::::::#.RRRR,,RRRR.T",
+    "T.....,,.....#::::::::::::::::::::::#.....,,.....T",
+    "T.T...,,.....#::::::::::::::::::::::#.....,,.....T",
+    "T.....,,.T...#::::::::::::::::::::::#.RRRR,,RRRR.T",
+    "T.....,,...T.###########99###########.....,,.....T",
+    "T..T..,,.....#T.........,,.........T#.....,,.....T",
+    "T.....,,.....#.BBB..BBB.,,.BBB..BBB.#.....,,.....T",
+    "T#####11######.BBB..BBB.,,.BBB..BBB.######55#####T",
+    "T.....,,..T..#..f....m..,,..b....i..#..T..,,.....T",
+    "T.T...,,,,,,,2,,,,,,,,,,,,,,,,,,,,,,6,,,,,,,..T..T",
+    "T..T..,,,,,,,2,,,,,,,,,,,,,,,,,,,,,,6,,,,,,,...T.T",
+    "T............#.BBBBB....,,....BBBBB.#............T",
+    "T#############.BBBBB....,,....BBBBB.#############T",
+    "T............#TBBBBB.T..,,..T.BBBBBT#..T.........T",
+    "T.~~......T..#..,t,.....,,......w...#........~~~.T",
+    "T.~~.........#..........,,..........#........~~~.T",
+    "T.....,,,,,,,4,,,,,,,,,,,,,,,,,,,,,,8,,,,,,,.....T",
+    "T.....,,,,,,,4,,,,,,,,,,,,,,,,,,,,,,8,,,,,,,.....T",
+    "T...T.,,.....#..........,,..........#.....,,.T...T",
+    "T.....,,...T.#T.........,,.........T#.T...,,.....T",
+    "T#####33##################################77#####T",
+    "T.....,,......TTTTTTTTTTTTTTTTTTTTTT......,,.....T",
+    "T=====,,=====.TTTTTTTTTTTTTTTTTTTTTT..X...,,..X..T",
+    "T.....,,......TTT~~~~~~~~~~~~~~~~TTT......,,.....T",
+    "T.K.K.,,.K.K..TTT~~~~~~~~~~~~~~~~TTT....X.,,.....T",
+    "T.....,,......TTT~~~~~~~~~~~~~~~~TTT......,,.X.X.T",
+    "T.....,,......TTT~~~~~~~~~~~~~~~~TTT......,,.....T",
+    "T.K.K.,,.K.K..TTT~~~~~~~~~~~~~~~~TTT..X...,,.....T",
+    "T.....,,......TTT~~~~~~~~~~~~~~~~TTT......,,.X...T",
+    "T.....,,......TTTTTTTTTTTTTTTTTTTTTT...X..,,...X.T",
+    "T.....,,......TTTTTTTTTTTTTTTTTTTTTT......,,.....T",
+    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+];
+
+// Poster: bomme (kind 'gate') og stande (kind 'station').
+const POSTS = {
+  billet:  { kind: 'gate',    name: 'Billetkontrollen',   emoji: '🎫', route: 'A' },
+  armbaand:{ kind: 'gate',    name: 'Armbåndsteltet',     emoji: '🔖', route: 'A' },
+  parkering:{kind: 'gate',    name: 'Parkeringsvagten',   emoji: '🅿️', route: 'B' },
+  taske:   { kind: 'gate',    name: 'Tasketjekket',       emoji: '🎒', route: 'B' },
+  cykel:   { kind: 'gate',    name: 'Cykelvagten',        emoji: '🚲', route: 'C' },
+  pant:    { kind: 'gate',    name: 'Pantstationen',      emoji: '♻️', route: 'C' },
+  camping: { kind: 'gate',    name: 'Campingvagten',      emoji: '⛺', route: 'D' },
+  vand:    { kind: 'gate',    name: 'Vandposten',         emoji: '🚰', route: 'D' },
+  finale:  { kind: 'gate',    name: 'Scenevagten',        emoji: '🎟️', final: true },
+  mad:     { kind: 'station', name: 'Madboden',           emoji: '🍔' },
+  merch:   { kind: 'station', name: 'Merchandise-teltet', emoji: '👕' },
+  bar:     { kind: 'station', name: 'Saft- & sodavandsbaren', emoji: '🥤' },
+  telt:    { kind: 'station', name: 'Teltscenen',         emoji: '🎪' },
+  info:    { kind: 'station', name: 'Info & førstehjælp', emoji: '⛑️' },
+  toilet:  { kind: 'station', name: 'Toiletkøen',         emoji: '🚻' },
+};
+
+// Hvilket korttegn hører til hvilken post
+const LEGEND = {
+  '1': 'billet', '2': 'armbaand', '3': 'parkering', '4': 'taske',
+  '5': 'cykel', '6': 'pant', '7': 'camping', '8': 'vand', '9': 'finale',
+  f: 'mad', m: 'merch', b: 'bar', t: 'telt', i: 'info', w: 'toilet',
+};
+
+// Startsteder – spillerne fordeles, så de starter forskellige steder
+const ROUTES = [
+  { id: 'A', name: 'Busstoppet',       spawn: [6.5, 7.5] },
+  { id: 'C', name: 'Cykelparkeringen', spawn: [42.5, 4.5] },
+  { id: 'B', name: 'Parkeringspladsen',spawn: [6.5, 34.5] },
+  { id: 'D', name: 'Campingpladsen',   spawn: [42.5, 34.5] },
+];
+
+const ZONES = [
+  { name: 'Hovedscenen',       x: 14, y: 1,  w: 22, h: 9 },
+  { name: 'Festivalpladsen',   x: 14, y: 11, w: 22, h: 15 },
+  { name: 'Busstoppet',        x: 1,  y: 1,  w: 12, h: 12 },
+  { name: 'Indgang vest',      x: 1,  y: 14, w: 12, h: 4 },
+  { name: 'Parkeringspladsen', x: 1,  y: 27, w: 13, h: 10 },
+  { name: 'Indgang sydvest',   x: 1,  y: 19, w: 12, h: 7 },
+  { name: 'Cykelparkeringen',  x: 37, y: 1,  w: 12, h: 12 },
+  { name: 'Indgang øst',       x: 37, y: 14, w: 12, h: 4 },
+  { name: 'Campingpladsen',    x: 36, y: 27, w: 13, h: 10 },
+  { name: 'Indgang sydøst',    x: 37, y: 19, w: 12, h: 7 },
+];
+
+// Området bag hegnet med hovedscenen (skjult indtil man er igennem Scenevagten)
+const STAGE = { x: 14, y: 1, w: 22, h: 9, crowd: { x: 14, y: 4, w: 22, h: 6 } };
+
+const LABELS = [
+  { text: '🚌 Busstoppet', x: 4, y: 4.2 },
+  { text: '🚗 Parkering', x: 3.5, y: 27.6 },
+  { text: '🚲 Cykelparkering', x: 45, y: 3.6 },
+  { text: '⛺ Camping', x: 45.5, y: 29.5 },
+  { text: '🎡 Festivalpladsen', x: 25, y: 18.2 },
+];
+
+const SOLID = new Set(['#', 'T', '~', 'S', 'B', 'K', 'R', 'X']);
+
+const W = MAP[0].length;
+const H = MAP.length;
+
+function tileAt(x, y) {
+  if (x < 0 || y < 0 || x >= W || y >= H) return 'T';
+  return MAP[y][x];
+}
+
+function postAt(x, y) {
+  return LEGEND[tileAt(x, y)] || null;
+}
+
+function zoneAt(x, y) {
+  for (const z of ZONES) if (x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h) return z.name;
+  return 'Festivalområdet';
+}
+
+function inRect(r, x, y) {
+  return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+}
+
+const AVATARS = ['🧑‍🎤', '🦄', '🐻', '🤠', '👽', '🐸', '🧙', '🦊', '🐼', '🤖', '🐯', '🧚'];
+const COLORS = ['#e63946', '#f4a261', '#e9c46a', '#2a9d8f', '#457b9d', '#8338ec', '#ff006e', '#06d6a0'];
+
+// ====================================================================
+// Artifact-motor: erstatter serveren, når spillet kører som claude.ai-artifact.
+// Hver spiller er "server" for sin egen tilstand og deler den via room-presence.
+// Spillet kan også spilles alene, hvis room ikke er tilgængeligt.
+// ====================================================================
+const ENGINE = (() => {
+  const FEST = FESTIVAL_DATA;
+  const QS = QUESTIONS_DATA;
+  const MAX_PLAYERS = 6;
+  const STAMPS_REQUIRED = Math.min(6, FEST.stampsRequired || 3);
+  const WRONG_BEFORE_HELP = 2, SKIP_AFTER_WRONG = 5, ANSWER_COOLDOWN_MS = 1200;
+  const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const rid8 = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
+  const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => ALPH[b % ALPH.length]).join('');
+  const norm = (s) => String(s ?? '').toLowerCase().replace(/[.,!?'"]/g, ' ').replace(/\s+/g, ' ').trim();
+  const ls = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+
+  let roomApi = null;          // lobby-room (eller null)
+  const roomP = (async () => {
+    try { roomApi = await window.claude?.use?.('room'); } catch { roomApi = null; }
+    return roomApi;
+  })();
+  let room = null, roomCode = null, unsub = null;
+  let me = null;               // min fulde tilstand
+  let code = null;
+  const listeners = new Set(); // FakeEventSource-instanser
+  let prev = null;             // forrige snapshot til diff
+
+  function seededShuffle(arr, seedStr) {
+    let seed = 0;
+    for (const c of seedStr) seed = (seed * 31 + c.charCodeAt(0)) >>> 0;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+
+  async function joinRoom(c) {
+    await roomP;
+    if (!roomApi || roomCode === c) return room;
+    try {
+      if (room) { try { unsub?.(); await room.leave(); } catch {} }
+      room = await roomApi.join('fest-' + c.toLowerCase());
+      roomCode = c;
+      unsub = room.onPeers(() => onChange());
+      // giv andre et øjeblik til at svare
+      await new Promise((r) => setTimeout(r, 900));
+    } catch { room = null; roomCode = null; }
+    return room;
+  }
+
+  // ---------- spillere ----------
+  function peersPresence() {
+    if (!room) return [];
+    return room.peers().filter((p) => !p.isMe && p.presence && p.presence.p).map((p) => p.presence);
+  }
+  function toPlayer(pr, online = true) {
+    const p = pr.p;
+    const solved = Array.isArray(p.s) ? p.s.filter((k) => POSTS[k]) : [];
+    const x = +p.x || 0, y = +p.y || 0;
+    return {
+      id: String(p.id), name: String(p.n || '?').slice(0, 16), avatar: String(p.a || '🙂').slice(0, 12), color: /^#[0-9a-f]{6}$/i.test(p.c) ? p.c : '#888',
+      route: p.r, x, y, dir: p.d || 'down', moving: !!p.m, online, solved,
+      atStage: solved.includes('finale') && inRect(STAGE.crowd, x, y),
+      _pr: pr,
+    };
+  }
+  function myPresence() {
+    return {
+      p: { id: me.pid, n: me.name, a: me.avatar, c: me.color, r: me.route, x: +me.x.toFixed(2), y: +me.y.toFixed(2), d: me.dir, m: me.moving, s: me.solved, q: Object.fromEntries(Object.entries(me.assigned).map(([k, v]) => [k, v.qi])) },
+      h: me.helps.slice(-4).map((h) => ({ r: h.rid, post: h.post, qi: h.qi, done: h.done, ans: h.ans || '', at: h.at })),
+      g: me.sugg.slice(-8),
+      ch: me.chat.slice(-6),
+      f: me.finale ? 1 : 0,
+    };
+  }
+  let pushT = 0, pushQueued = false;
+  function push() {
+    save();
+    if (!room) { onChange(); return; }
+    const now = performance.now();
+    if (now - pushT < 80) { if (!pushQueued) { pushQueued = true; setTimeout(() => { pushQueued = false; push(); }, 90); } return; }
+    pushT = now;
+    room.presence(myPresence()).catch(() => {});
+    onChange();
+  }
+  function save() { if (me && code) ls.set('fa:' + code, me); }
+
+  function allPlayers() {
+    const list = [];
+    if (me) list.push(toPlayer(myPresence()));
+    const seen = new Set([me?.pid]);
+    for (const pr of peersPresence()) {
+      if (seen.has(String(pr.p.id))) continue; // samme spiller i to faner
+      seen.add(String(pr.p.id));
+      list.push(toPlayer(pr));
+    }
+    return list;
+  }
+
+  // ---------- plakat ----------
+  function posterView(players, full) {
+    const name = FEST.festivalName;
+    const order = {
+      pieces: seededShuffle([...FEST.lineup.map((_, i) => `band:${i}`), 'date', 'place', 'tagline'], code),
+      letters: seededShuffle([...name].map((_, i) => i).filter((i) => name[i] !== ' '), code + 'x'),
+    };
+    let solved = 0;
+    for (const p of players) {
+      const gates = p.solved.filter((k) => POSTS[k].kind === 'gate').length;
+      const st = p.solved.filter((k) => POSTS[k].kind === 'station').length;
+      solved += gates + Math.min(st, STAMPS_REQUIRED);
+    }
+    const required = Math.max(1, players.length * (2 + STAMPS_REQUIRED + 1));
+    const ratio = Math.min(1, solved / required);
+    const pc = full ? Infinity : Math.floor(ratio * order.pieces.length);
+    const lc = full ? Infinity : Math.floor(ratio * 0.85 * order.letters.length);
+    const sp = new Set(order.pieces.slice(0, pc)), sl = new Set(order.letters.slice(0, lc));
+    const total = order.pieces.length + order.letters.length + 1;
+    return {
+      name: [...name].map((c, i) => (c === ' ' ? ' ' : sl.has(i) ? c : null)),
+      tagline: sp.has('tagline') ? FEST.tagline : null,
+      date: sp.has('date') ? FEST.date : null,
+      place: sp.has('place') ? FEST.place : null,
+      lineup: FEST.lineup.map((b, i) => (sp.has(`band:${i}`) ? b : null)),
+      headliner: full ? FEST.headliner : null,
+      revealed: full ? total : sp.size + sl.size,
+      total, progress: { solved, required, ratio },
+    };
+  }
+
+  // ---------- hjælp / chat samlet fra alle ----------
+  function collect(players) {
+    const helps = new Map(), chat = [];
+    const sugg = [];
+    for (const pl of players) {
+      const pr = pl._pr;
+      for (const g of Array.isArray(pr.g) ? pr.g : []) sugg.push({ rid: String(g.r), text: String(g.t || '').slice(0, 140), at: +g.at || 0, from: pl.name, avatar: pl.avatar, pid: pl.id });
+      for (const m of Array.isArray(pr.ch) ? pr.ch : []) chat.push({ from: pl.name, avatar: pl.avatar, color: pl.color, pid: pl.id, text: String(m.t || '').slice(0, 200), at: +m.at || 0 });
+    }
+    for (const pl of players) {
+      for (const h of Array.isArray(pl._pr.h) ? pl._pr.h : []) {
+        const q = QS[h.post]?.[h.qi];
+        if (!q) continue;
+        helps.set(String(h.r), {
+          rid: String(h.r), pid: pl.id, name: pl.name, avatar: pl.avatar, post: h.post, postName: POSTS[h.post].name,
+          q: q.q, type: q.type, options: q.type === 'choice' ? q.options : undefined, hints: q.hints || [],
+          suggestions: sugg.filter((s) => s.rid === String(h.r)).sort((a, b) => a.at - b.at), done: !!h.done, answer: String(h.ans || ''), at: +h.at || 0,
+        });
+      }
+    }
+    chat.sort((a, b) => a.at - b.at);
+    return { helps, chat, sugg };
+  }
+
+  // ---------- events ----------
+  function dispatch(type, data) { for (const l of listeners) l._emit(type, data); }
+
+  function snapshot() {
+    const players = allPlayers();
+    const { helps, chat, sugg } = collect(players);
+    const finale = !!me?.finale;
+    return { players, helps, chat, sugg, poster: posterView(players, finale) };
+  }
+
+  function onChange() {
+    if (!me || listeners.size === 0) return;
+    const s = snapshot();
+    const pub = s.players.map(({ _pr, ...p }) => p);
+    dispatch('players', { players: pub });
+    if (prev) {
+      const prevIds = new Set(prev.players.map((p) => p.id));
+      for (const p of s.players) {
+        if (!prevIds.has(p.id)) { dispatch('toast', { text: `${p.avatar} ${p.name} er med i spillet` }); continue; }
+        const old = prev.players.find((o) => o.id === p.id);
+        for (const k of p.solved) if (!old.solved.includes(k) && p.id !== me.pid) dispatch('solved', { pid: p.id, name: p.name, avatar: p.avatar, post: k, postName: POSTS[k].name });
+      }
+      for (const [rid, h] of s.helps) {
+        const o = prev.helps.get(rid);
+        if (!o && !h.done) dispatch('help', h);
+        else if (o && !o.done && h.done) dispatch('helpdone', { rid, answer: h.answer });
+      }
+      const seenSug = new Set(prev.sugg.map((g) => g.pid + g.at));
+      for (const g of s.sugg) if (!seenSug.has(g.pid + g.at)) dispatch('suggest', { rid: g.rid, from: g.from, avatar: g.avatar, pid: g.pid, text: g.text, at: g.at });
+      const seenChat = new Set(prev.chat.map((m) => m.pid + m.at));
+      for (const m of s.chat) if (!seenChat.has(m.pid + m.at)) dispatch('chat', m);
+      if (s.poster.revealed !== prev.poster.revealed) dispatch('poster', s.poster);
+    }
+    prev = s;
+    checkFinale(s.players);
+  }
+
+  function checkFinale(players) {
+    if (me.finale) return;
+    // finalen starter, når alle i rummet står ved scenen (eller en anden allerede har startet den)
+    const anyFinale = peersPresence().some((pr) => pr.f === 1) && players.find((p) => p.id === me.pid)?.atStage;
+    if ((players.length && players.every((p) => p.atStage)) || anyFinale) {
+      me.finale = true; push();
+      const s = snapshot();
+      dispatch('finale', { poster: s.poster, teaser: FEST.headlinerTeaser, message: FEST.finaleMessage, players: s.players.map((p) => p.name) });
+    }
+  }
+
+  // ---------- spørgsmål ----------
+  const pubQ = (q, a) => ({ q: q.q, type: q.type, options: q.type === 'choice' ? q.options : undefined, hintsTotal: q.hints?.length || 0, hints: (q.hints || []).slice(0, a.hintsUsed), wrong: a.wrong });
+  const canAsk = (q, a) => a.hintsUsed >= (q.hints?.length || 0) || a.wrong >= WRONG_BEFORE_HELP;
+  const canSkip = (q, a) => a.wrong >= SKIP_AFTER_WRONG && a.hintsUsed >= (q.hints?.length || 0);
+  const qOut = (post, q, a) => ({ post, question: pubQ(q, a), canAskTeam: canAsk(q, a), canSkip: canSkip(q, a) });
+  const stamps = () => me.solved.filter((k) => POSTS[k].kind === 'station').length;
+  function assign(post) {
+    if (me.assigned[post]) return me.assigned[post];
+    const pool = QS[post];
+    const taken = new Set(peersPresence().map((pr) => pr.p.q?.[post]).filter((v) => v !== undefined));
+    const free = pool.map((_, i) => i).filter((i) => !taken.has(i));
+    const ch = free.length ? free : pool.map((_, i) => i);
+    me.assigned[post] = { qi: ch[Math.floor(Math.random() * ch.length)], hintsUsed: 0, wrong: 0, lastAnswer: 0 };
+    push();
+    return me.assigned[post];
+  }
+  function ansText(q, v) { return q.type === 'choice' ? (q.options[Number(v)] ?? '') : String(v ?? '').slice(0, 80); }
+  function markSolved(post, shown) {
+    if (me.solved.includes(post)) return;
+    me.solved.push(post);
+    for (const h of me.helps) if (h.post === post && !h.done) { h.done = true; h.ans = shown; }
+    push();
+  }
+
+  const err = (m) => { throw new Error(m); };
+
+  // ---------- "API" ----------
+  async function api(path, body) {
+    const parts = path.split('/').filter(Boolean); // api, s, CODE, action
+    if (parts[1] === 'sessions') { const c = newCode(); await joinRoom(c); return { id: c, maxPlayers: MAX_PLAYERS }; }
+    const c = String(parts[2] || '').toUpperCase();
+    if (!/^[A-Z0-9]{4,8}$/.test(c)) err('Ugyldig kode');
+    const action = parts[3] || '';
+    await joinRoom(c);
+    if (code !== c) { code = c; me = null; prev = null; }
+
+    if (body === undefined && action === '') {
+      const others = peersPresence();
+      const stored = ls.get('fa:' + c);
+      if (!room && !stored && others.length === 0 && !creating.has(c)) {
+        // uden room kan vi ikke se andre – tillad alligevel solo
+      }
+      return { id: c, players: others.length, maxPlayers: MAX_PLAYERS, avatars: AVATARS, colors: COLORS, taken: others.map((pr) => ({ name: String(pr.p.n), avatar: String(pr.p.a) })) };
+    }
+
+    if (action === 'join') {
+      const stored = ls.get('fa:' + c);
+      if (stored && stored.pid === body.pid && stored.token === body.token) { me = stored; push(); return { pid: me.pid, token: me.token, rejoined: true }; }
+      const name = String(body.name || '').trim().replace(/\s+/g, ' ').slice(0, 16);
+      if (!name) err('Skriv dit navn');
+      const others = peersPresence();
+      if (others.length >= MAX_PLAYERS) err(`Spillet er fuldt (maks ${MAX_PLAYERS} spillere).`);
+      const counts = ROUTES.map((r) => others.filter((pr) => pr.p.r === r.id).length);
+      const min = Math.min(...counts), route = ROUTES[counts.indexOf(min)];
+      const off = min * 0.8;
+      me = {
+        pid: rid8(), token: rid8(), name, avatar: AVATARS.includes(body.avatar) ? body.avatar : AVATARS[0], color: COLORS.includes(body.color) ? body.color : COLORS[0],
+        route: route.id, x: route.spawn[0] + (min % 2 ? off : -off) * 0.5, y: route.spawn[1], dir: 'down', moving: false,
+        solved: [], assigned: {}, helps: [], sugg: [], chat: [], finale: false,
+      };
+      push();
+      return { pid: me.pid, token: me.token };
+    }
+
+    if (!me) { const st = ls.get('fa:' + c); if (st && st.pid === body?.pid) me = st; }
+    if (!me || me.pid !== body?.pid) err('Ukendt spiller – deltag igen.');
+
+    const post = String(body.post || '');
+    switch (action) {
+      case 'move':
+        me.x = +body.x; me.y = +body.y; me.dir = body.dir; me.moving = !!body.moving; push();
+        return { ok: true };
+      case 'post': {
+        if (!POSTS[post]) err('Ukendt post');
+        if (me.solved.includes(post)) return { solved: true, post };
+        if (POSTS[post].final && stamps() < STAMPS_REQUIRED) return { locked: true, post, need: STAMPS_REQUIRED - stamps(), stamps: stamps() };
+        const a = assign(post);
+        return qOut(post, QS[post][a.qi], a);
+      }
+      case 'hint': {
+        const a = me.assigned[post]; if (!a) err('Intet spørgsmål');
+        const q = QS[post][a.qi]; a.hintsUsed = Math.min((q.hints || []).length, a.hintsUsed + 1); save();
+        return qOut(post, q, a);
+      }
+      case 'answer': {
+        const a = me.assigned[post]; if (!a) err('Intet spørgsmål');
+        if (Date.now() - a.lastAnswer < ANSWER_COOLDOWN_MS) err('Vent lige et øjeblik…');
+        a.lastAnswer = Date.now();
+        const q = QS[post][a.qi];
+        const ok = q.type === 'choice' ? Number(body.answer) === q.answer : (q.answers || []).some((x) => norm(x) === norm(body.answer));
+        if (ok) { markSolved(post, ansText(q, body.answer)); return { correct: true, stamps: stamps() }; }
+        a.wrong++; save();
+        return { correct: false, ...qOut(post, q, a) };
+      }
+      case 'skip': {
+        const a = me.assigned[post]; if (!a) err('Intet spørgsmål');
+        const q = QS[post][a.qi]; if (!canSkip(q, a)) err('Prøv lidt mere først 🙂');
+        markSolved(post, ansText(q, q.type === 'choice' ? q.answer : q.answers[0]));
+        return { correct: true, skipped: true };
+      }
+      case 'help': {
+        const a = me.assigned[post]; if (!a) err('Intet spørgsmål');
+        const q = QS[post][a.qi]; if (!canAsk(q, a)) err('Brug dine hints først');
+        let h = me.helps.find((x) => x.post === post && !x.done);
+        if (!h) { h = { rid: rid8(), post, qi: a.qi, done: false, at: Date.now() }; me.helps.push(h); push(); }
+        return { rid: h.rid };
+      }
+      case 'suggest': {
+        const h = snapshot().helps.get(String(body.rid));
+        if (!h || h.done) err('Spørgsmålet er allerede løst');
+        let text = String(body.text || '').trim().slice(0, 140);
+        if (body.option !== undefined && h.options) text = h.options[Number(body.option)] ?? text;
+        if (!text) err('Tom besked');
+        me.sugg.push({ r: h.rid, t: text, at: Date.now() }); me.sugg = me.sugg.slice(-8); push();
+        return { ok: true };
+      }
+      case 'chat': {
+        const text = String(body.text || '').trim().slice(0, 200); if (!text) err('Tom besked');
+        me.chat.push({ t: text, at: Date.now() }); me.chat = me.chat.slice(-6); push();
+        return { ok: true };
+      }
+    }
+    err('Ukendt handling');
+  }
+  const creating = new Set();
+
+  // ---------- EventSource-erstatning ----------
+  class FakeEventSource {
+    constructor(url) {
+      this.readyState = 1; this.handlers = {};
+      const u = new URL(url, 'http://x');
+      const c = u.pathname.split('/')[3];
+      listeners.add(this);
+      setTimeout(async () => {
+        await joinRoom(c);
+        code = c;
+        if (!me) { const st = ls.get('fa:' + c); if (st && st.pid === u.searchParams.get('pid')) me = st; }
+        if (!me) { this.onerror?.(); return; }
+        push();
+        const s = snapshot();
+        prev = s;
+        this._emit('init', {
+          me: me.pid, config: { maxPlayers: MAX_PLAYERS, stampsRequired: STAMPS_REQUIRED },
+          players: s.players.map(({ _pr, ...p }) => p), poster: s.poster, chat: s.chat,
+          help: [...s.helps.values()].filter((h) => !h.done),
+          finale: me.finale ? { poster: s.poster, teaser: FEST.headlinerTeaser, message: FEST.finaleMessage, players: [] } : null,
+        });
+        if (!room) this._emit('toast', { text: 'Solo-tilstand: live-samspil er ikke tilgængeligt i denne visning' });
+      }, 0);
+      // hold online-status frisk
+      this._iv = setInterval(() => onChange(), 3000);
+    }
+    addEventListener(t, fn) { (this.handlers[t] ||= []).push(fn); }
+    _emit(t, data) { for (const fn of this.handlers[t] || []) { try { fn({ data: JSON.stringify(data) }); } catch (e) { console.error(e); } } }
+    close() { listeners.delete(this); clearInterval(this._iv); this.readyState = 2; }
+  }
+  FakeEventSource.CLOSED = 2;
+
+  return { api, FakeEventSource, hasRoom: async () => !!(await roomP) };
+})();
+
+
+// ====================================================================
+// Hjælpere
+// ====================================================================
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const api = (path, body) => ENGINE.api(path, body);
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
+}
+function openModal(id) { $(id).classList.remove('hidden'); }
+function closeModal(id) {
+  $(id).classList.add('hidden');
+  if (id === 'qModal') { G.currentPost = null; }
+}
+document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => closeModal(b.dataset.close)));
+document.querySelectorAll('.modal').forEach((m) => m.addEventListener('pointerdown', (e) => { if (e.target === m) closeModal(m.id); }));
+
+function toast(html, ms = 3500) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = html;
+  $('toasts').appendChild(el);
+  while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
+  setTimeout(() => el.remove(), ms);
+  return el;
+}
+
+const credsKey = (code) => `festival:${code}`;
+const loadCreds = (code) => { try { return JSON.parse(localStorage.getItem(credsKey(code))); } catch { return null; } };
+const saveCreds = (code, c) => { try { localStorage.setItem(credsKey(code), JSON.stringify(c)); localStorage.setItem('festival:last', code); } catch {} };
+
+async function share(code) {
+  try { await navigator.clipboard.writeText(code); toast(`🔑 Koden ${code} er kopieret – send den til dit hold`); }
+  catch { toast(`🔑 Spil-koden er <b>${code}</b> – send den til dit hold`, 6000); }
+}
+
+// ====================================================================
+// Global tilstand
+// ====================================================================
+const G = {
+  code: null, pid: null, token: null,
+  me: null,                 // min spiller (lokal position)
+  players: new Map(),       // id -> spiller fra server (+ rx/ry til glat bevægelse)
+  config: { stampsRequired: 3, maxPlayers: 6 },
+  poster: null,
+  helps: new Map(),         // rid -> hjælpeanmodning
+  chat: [],
+  unreadChat: 0,
+  finale: null,
+  currentPost: null,        // post der vises i spørgsmålsvinduet
+  myHelpRid: {},            // post -> rid
+  explored: new Uint8Array(W * H),
+  es: null,
+};
+const mySolved = () => new Set(G.players.get(G.pid)?.solved || []);
+
+// ====================================================================
+// Lobby
+// ====================================================================
+const params = new URLSearchParams(location.search);
+const urlCode = (location.hash.slice(1) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+if (urlCode) $('codeInput').value = urlCode;
+
+(function checkResume() {
+  const code = urlCode || (() => { try { return localStorage.getItem('festival:last'); } catch { return null; } })();
+  if (!code) return;
+  const c = loadCreds(code);
+  if (!c) return;
+  api(`/api/s/${code}`).then(() => {
+    $('resumeBox').classList.remove('hidden');
+    $('resumeCode').textContent = code;
+    $('resumeBtn').onclick = () => startGame(code, c);
+  }).catch(() => {});
+})();
+
+$('createBtn').onclick = async () => {
+  $('lobbyError').textContent = '';
+  try {
+    const { id } = await api('/api/sessions', {});
+    
+    await gotoCharacter(id);
+  } catch (e) { $('lobbyError').textContent = e.message; }
+};
+
+$('joinForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('lobbyError').textContent = '';
+  const code = $('codeInput').value.trim().toUpperCase();
+  if (code.length < 4) { $('lobbyError').textContent = 'Skriv koden fra din medspiller'; return; }
+  try {
+    const c = loadCreds(code);
+    if (c) {
+      await api(`/api/s/${code}`);
+      
+      return startGame(code, c);
+    }
+    
+    await gotoCharacter(code);
+  } catch (err) { $('lobbyError').textContent = err.message; }
+};
+
+// ====================================================================
+// Karaktervalg
+// ====================================================================
+async function gotoCharacter(code) {
+  const info = await api(`/api/s/${code}`);
+  G.code = code;
+  $('charCode').textContent = code;
+  $('charShare').onclick = () => share(code);
+  if (info.players >= info.maxPlayers) throw new Error(`Spillet er fuldt (maks ${info.maxPlayers} spillere).`);
+  $('charInfo').textContent = info.players === 0
+    ? `Du er den første! Del koden, så op til ${info.maxPlayers - 1} andre kan spille med.`
+    : `${info.players} af ${info.maxPlayers} spillere er allerede med: ${info.taken.map((t) => t.avatar + ' ' + t.name).join(', ')}`;
+
+  const takenAv = new Set(info.taken.map((t) => t.avatar));
+  let avatar = AVATARS.find((a) => !takenAv.has(a)) || AVATARS[0];
+  let color = COLORS[info.players % COLORS.length];
+
+  const render = () => {
+    $('avatarGrid').innerHTML = AVATARS.map((a) => `<button type="button" class="${a === avatar ? 'sel' : ''} ${takenAv.has(a) ? 'taken' : ''}" data-a="${a}">${a}</button>`).join('');
+    $('colorGrid').innerHTML = COLORS.map((c) => `<button type="button" class="${c === color ? 'sel' : ''}" data-c="${c}" style="background:${c}"></button>`).join('');
+    $('preview').textContent = avatar;
+    $('preview').style.borderColor = color;
+  };
+  $('avatarGrid').onclick = (e) => { const b = e.target.closest('[data-a]'); if (b) { avatar = b.dataset.a; render(); } };
+  $('colorGrid').onclick = (e) => { const b = e.target.closest('[data-c]'); if (b) { color = b.dataset.c; render(); } };
+  render();
+  try { $('nameInput').value = localStorage.getItem('festival:name') || ''; } catch {}
+  showScreen('character');
+
+  $('joinBtn').onclick = async () => {
+    $('charError').textContent = '';
+    const name = $('nameInput').value.trim();
+    if (!name) { $('charError').textContent = 'Skriv dit navn først'; $('nameInput').focus(); return; }
+    try {
+      localStorage.setItem('festival:name', name);
+    } catch {}
+    try {
+      const r = await api(`/api/s/${code}/join`, { name, avatar, color });
+      saveCreds(code, { pid: r.pid, token: r.token });
+      startGame(code, { pid: r.pid, token: r.token });
+    } catch (e) { $('charError').textContent = e.message; }
+  };
+}
+
+// ====================================================================
+// Start spil + forbindelse
+// ====================================================================
+function startGame(code, creds) {
+  G.code = code; G.pid = creds.pid; G.token = creds.token;
+  $('hudCode').textContent = code;
+  $('teamCode').textContent = code;
+  loadExplored();
+  showScreen('game');
+  resize();
+  connect();
+  requestAnimationFrame(loop);
+  setTimeout(() => { $('controlsHint').style.opacity = '0'; }, 9000);
+}
+
+function connect() {
+  if (G.es) G.es.close();
+  const es = new ENGINE.FakeEventSource(`/api/s/${G.code}/events?pid=${G.pid}&token=${G.token}`);
+  G.es = es;
+  es.addEventListener('init', (e) => {
+    const d = JSON.parse(e.data);
+    G.config = d.config;
+    setPlayers(d.players, true);
+    G.poster = d.poster;
+    G.chat = d.chat;
+    G.helps = new Map(d.help.map((h) => [h.rid, h]));
+    for (const h of d.help) if (h.pid === G.pid) G.myHelpRid[h.post] = h.rid;
+    renderChat(); renderHelps(); renderPoster(); updateHud();
+    if (d.finale && !G.finale) { G.finale = d.finale; }
+  });
+  es.addEventListener('players', (e) => { setPlayers(JSON.parse(e.data).players, false); });
+  es.addEventListener('poster', (e) => { G.poster = JSON.parse(e.data); renderPoster(); updateHud(); });
+  es.addEventListener('toast', (e) => { const d = JSON.parse(e.data); toast(esc(d.text)); });
+  es.addEventListener('solved', (e) => {
+    const d = JSON.parse(e.data);
+    if (d.pid !== G.pid) toast(`🎉 ${esc(d.avatar)} ${esc(d.name)} klarede ${esc(d.postName)}`);
+    const p = G.players.get(d.pid);
+    if (p && !p.solved.includes(d.post)) p.solved.push(d.post);
+    updateHud();
+  });
+  es.addEventListener('chat', (e) => {
+    const m = JSON.parse(e.data);
+    G.chat.push(m);
+    if ($('chatModal').classList.contains('hidden') && m.pid !== G.pid) {
+      G.unreadChat++;
+      toast(`💬 <b>${esc(m.avatar)} ${esc(m.from)}:</b> ${esc(m.text)}`);
+    }
+    renderChat(); updateHud();
+  });
+  es.addEventListener('help', (e) => {
+    const h = JSON.parse(e.data);
+    G.helps.set(h.rid, h);
+    if (h.pid !== G.pid) {
+      const t = toast(`🆘 <b>${esc(h.avatar)} ${esc(h.name)}</b> har brug for hjælp ved ${esc(h.postName)} <button class="btn small primary">Hjælp</button>`, 9000);
+      t.querySelector('button').onclick = () => { t.remove(); openModal('helpModal'); };
+      beep(660, 0.12);
+    }
+    renderHelps(); updateHud();
+  });
+  es.addEventListener('suggest', (e) => {
+    const d = JSON.parse(e.data);
+    const h = G.helps.get(d.rid);
+    if (h) { h.suggestions.push(d); }
+    if (h && h.pid === G.pid && d.pid !== G.pid) {
+      toast(`💡 ${esc(d.avatar)} ${esc(d.from)} foreslår: <b>${esc(d.text)}</b>`, 6000);
+      beep(880, 0.1);
+    }
+    renderHelps();
+    if (G.currentPost && h && h.post === G.currentPost && h.pid === G.pid) renderSuggestions();
+  });
+  es.addEventListener('helpdone', (e) => {
+    const d = JSON.parse(e.data);
+    const h = G.helps.get(d.rid);
+    if (h) { h.done = true; h.answer = d.answer; if (h.pid !== G.pid) toast(`✅ ${esc(h.name)} kom forbi ${esc(h.postName)} – tak for hjælpen!`); }
+    renderHelps(); updateHud();
+  });
+  es.addEventListener('finale', (e) => {
+    const d = JSON.parse(e.data);
+    G.finale = d;
+    G.poster = d.poster;
+    renderPoster();
+    startFinale(d);
+  });
+  es.onerror = () => {
+    // EventSource genforbinder selv. Hvis serveren ikke kender os længere, gå tilbage til lobby.
+    setTimeout(async () => {
+      if (es.readyState === 2) {
+        try { await api(`/api/s/${G.code}`); connect(); }
+        catch { toast('Forbindelsen til spillet blev afbrudt'); }
+      }
+    }, 3000);
+  };
+}
+
+function setPlayers(list, isInit) {
+  const seen = new Set();
+  for (const sp of list) {
+    seen.add(sp.id);
+    const ex = G.players.get(sp.id);
+    if (sp.id === G.pid) {
+      if (!G.me || isInit) {
+        G.me = { x: sp.x, y: sp.y, dir: sp.dir, moving: false };
+        revealAround(G.me.x, G.me.y);
+      }
+      G.players.set(sp.id, { ...sp, rx: G.me.x, ry: G.me.y });
+    } else {
+      G.players.set(sp.id, { ...sp, rx: ex ? ex.rx : sp.x, ry: ex ? ex.ry : sp.y });
+    }
+  }
+  for (const id of [...G.players.keys()]) if (!seen.has(id)) G.players.delete(id);
+  updateHud();
+  if (!$('teamModal').classList.contains('hidden')) renderTeam();
+}
+
+// ====================================================================
+// HUD
+// ====================================================================
+function stationIds() { return Object.keys(POSTS).filter((k) => POSTS[k].kind === 'station'); }
+
+function updateHud() {
+  const solved = mySolved();
+  const stamps = stationIds().filter((k) => solved.has(k));
+  const need = G.config.stampsRequired;
+  $('stampBar').innerHTML = `🎟️ ${Math.min(stamps.length, need)}/${need} ` +
+    stationIds().map((k) => `<span class="st ${solved.has(k) ? 'got' : ''}" title="${esc(POSTS[k].name)}">${POSTS[k].emoji}</span>`).join('');
+  $('teamCount').textContent = G.players.size;
+  if (G.poster) $('posterCount').textContent = `${G.poster.revealed}/${G.poster.total}`;
+  const openHelps = [...G.helps.values()].filter((h) => !h.done && h.pid !== G.pid);
+  $('helpBtn').classList.toggle('hidden', openHelps.length === 0);
+  $('helpCount').textContent = openHelps.length;
+  $('chatBadge').textContent = G.unreadChat;
+  $('chatBadge').classList.toggle('hidden', G.unreadChat === 0);
+
+  // Mål / objective
+  const me = G.players.get(G.pid);
+  let obj = '';
+  if (!me) obj = '';
+  else if (G.finale) obj = '🎶 Koncerten er i gang!';
+  else if (solved.has('finale')) obj = '🎤 Gå helt op foran scenen!';
+  else {
+    const route = ROUTES.find((r) => r.id === me.route);
+    const routeGates = Object.keys(POSTS).filter((k) => POSTS[k].route === me.route);
+    const left = routeGates.filter((k) => !solved.has(k));
+    if (left.length) obj = `🚶 Find vej ind på festivalen – ${POSTS[left[0]].emoji} ${POSTS[left[0]].name} venter`;
+    else if (stamps.length < need) obj = `🎡 Saml ${need - stamps.length} ${need - stamps.length > 1 ? 'stempler' : 'stempel'} mere fra standene på festivalpladsen`;
+    else obj = '🎟️ Du har stemplerne! Find Scenevagten ved det store hegn mod nord';
+    if (!route) obj = '';
+  }
+  $('objective').textContent = obj;
+  updateStageBanner();
+}
+
+function updateStageBanner() {
+  const me = G.players.get(G.pid);
+  const el = $('stageBanner');
+  if (!me || G.finale || !G.me || !(mySolved().has('finale') && inRect(STAGE.crowd, G.me.x, G.me.y))) {
+    el.classList.add('hidden');
+    return;
+  }
+  const waiting = [...G.players.values()].filter((p) => p.online && !p.atStage && p.id !== G.pid);
+  el.classList.remove('hidden');
+  if (waiting.length === 0) el.innerHTML = '🎶 Alle er her… lyset dæmpes…';
+  else el.innerHTML = `🎶 Du er ved scenen! Koncerten starter, når hele holdet er her.<br>Venter på: ${waiting.map((p) => `${esc(p.avatar)} ${esc(p.name)} <small>(${esc(zoneAt(p.x, p.y))})</small>`).join(', ')}<br><small>Tjek 🆘 og 💬 – måske kan du hjælpe dem!</small>`;
+}
+
+$('codeChip').onclick = () => share(G.code);
+$('teamShare').onclick = () => share(G.code);
+$('posterBtn').onclick = () => { renderPoster(); openModal('posterModal'); };
+$('teamBtn').onclick = () => { renderTeam(); openModal('teamModal'); };
+$('helpBtn').onclick = () => { renderHelps(); openModal('helpModal'); };
+$('chatBtn').onclick = () => {
+  G.unreadChat = 0; updateHud(); renderChat(); openModal('chatModal');
+  setTimeout(() => $('chatInput').focus(), 50);
+};
+
+// ====================================================================
+// Hold, chat, plakat
+// ====================================================================
+function renderTeam() {
+  const need = G.config.stampsRequired;
+  $('teamList').innerHTML = [...G.players.values()].map((p) => {
+    const stamps = p.solved.filter((k) => POSTS[k]?.kind === 'station').length;
+    const status = p.atStage ? '🎤 Ved hovedscenen' : `📍 ${zoneAt(p.x, p.y)}`;
+    return `<div class="member">
+      <div class="av" style="border-color:${esc(p.color)}">${esc(p.avatar)}</div>
+      <div class="info"><b>${esc(p.name)}${p.id === G.pid ? ' (dig)' : ''}</b>
+        <small>${esc(status)} · 🎟️ ${Math.min(stamps, need)}/${need}</small></div>
+      <div class="dot ${p.online ? 'on' : ''}" title="${p.online ? 'Online' : 'Offline'}"></div>
+    </div>`;
+  }).join('');
+}
+
+function renderChat() {
+  $('chatList').innerHTML = G.chat.map((m) => `<div class="msg ${m.pid === G.pid ? 'me' : ''}">
+    <div class="who" style="color:${esc(m.color || '#555')}">${esc(m.avatar)} ${esc(m.from)}</div>
+    <div class="txt">${esc(m.text)}</div></div>`).join('') || '<p class="muted">Ingen beskeder endnu. Sig hej til holdet! 👋</p>';
+  $('chatList').scrollTop = 1e9;
+}
+$('chatForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('chatInput').value.trim();
+  if (!text) return;
+  $('chatInput').value = '';
+  try { await api(`/api/s/${G.code}/chat`, auth({ text })); } catch (err) { toast(esc(err.message)); }
+};
+
+function posterHtml(p, big = false) {
+  if (!p) return '';
+  const name = p.name.map((c) => c === ' ' ? '&nbsp; ' : c ? `<span class="shown-letter">${esc(c)}</span>` : '<span class="hidden-letter">_</span>').join('');
+  const pct = Math.round((p.progress?.ratio || 0) * 100);
+  return `<div class="poster">
+    <div style="font-size:14px;opacity:.8">✨ VELKOMMEN TIL ✨</div>
+    <div class="pname" style="font-size:${Math.max(18, Math.min(38, Math.floor(520 / Math.max(8, p.name.length))))}px">${name}</div>
+    <div class="tagline">${p.tagline ? esc(p.tagline) : '· · ·'}</div>
+    <div class="meta"><span>📅 ${p.date ? esc(p.date) : '???'}</span><span>📍 ${p.place ? esc(p.place) : '???'}</span></div>
+    <div class="headliner-box ${p.headliner ? 'revealed' : ''}">${p.headliner ? '⭐ ' + esc(p.headliner) + ' ⭐' : '🔒 HEMMELIGT HOVEDNAVN'}</div>
+    <div class="lineup">${p.lineup.map((b) => b ? `<div>${esc(b)}</div>` : '<div class="q">? ? ?</div>').join('')}</div>
+    ${big ? '' : `<div class="poster-progress"><div class="bar"><div style="width:${pct}%"></div></div>
+    <p>Holdet har låst ${p.revealed} af ${p.total} plakatbrikker op. Hver post, nogen på holdet klarer, afslører mere.<br>Hovednavnet afsløres først, når hele holdet står foran scenen.</p></div>`}
+  </div>`;
+}
+let lastRevealed = -1;
+function renderPoster() {
+  if (!G.poster) return;
+  $('poster').innerHTML = posterHtml(G.poster);
+  if (lastRevealed >= 0 && G.poster.revealed > lastRevealed && !G.finale) {
+    toast(`🧩 Ny plakatbrik! <button class="btn small">Se plakaten</button>`, 4500)
+      .querySelector('button').onclick = () => openModal('posterModal');
+  }
+  lastRevealed = G.poster.revealed;
+  updateHud();
+}
+
+// ====================================================================
+// Hjælp til medspillere
+// ====================================================================
+function renderHelps() {
+  const list = [...G.helps.values()].filter((h) => h.pid !== G.pid).sort((a, b) => a.done - b.done || b.at - a.at);
+  if (list.length === 0) { $('helpList').innerHTML = '<p class="muted">Ingen har brug for hjælp lige nu. 👍</p>'; return; }
+  $('helpList').innerHTML = list.map((h) => `<div class="help-item ${h.done ? 'done' : ''}" data-rid="${h.rid}">
+    <h4>${esc(h.avatar)} ${esc(h.name)} ved ${esc(h.postName)} ${h.done ? '✅' : ''}</h4>
+    <p class="qtext">${esc(h.q)}</p>
+    ${h.hints?.length ? `<ul class="hints">${h.hints.map((x) => `<li>💡 ${esc(x)}</li>`).join('')}</ul>` : ''}
+    ${h.done ? `<p class="feedback good">Løst! Svaret var: ${esc(h.answer || '')}</p>` : `
+      ${h.options ? `<div class="options">${h.options.map((o, i) => `<button class="btn" data-opt="${i}">Foreslå: ${esc(o)}</button>`).join('')}</div>` : ''}
+      <form class="row suggest-form"><input placeholder="${h.options ? 'Eller skriv en besked…' : 'Skriv dit forslag…'}" maxlength="140" /><button class="btn primary">Send</button></form>`}
+    ${h.suggestions.length ? `<div class="suggestions">${h.suggestions.map((s) => `<div class="s">${esc(s.avatar)} <b>${esc(s.from)}:</b> ${esc(s.text)}</div>`).join('')}</div>` : ''}
+  </div>`).join('');
+  $('helpList').querySelectorAll('.help-item').forEach((el) => {
+    const rid = el.dataset.rid;
+    el.querySelectorAll('[data-opt]').forEach((b) => b.onclick = () => suggest(rid, { option: Number(b.dataset.opt) }));
+    const f = el.querySelector('.suggest-form');
+    if (f) f.onsubmit = (e) => { e.preventDefault(); const v = f.querySelector('input').value.trim(); if (v) suggest(rid, { text: v }); };
+  });
+}
+async function suggest(rid, payload) {
+  try { await api(`/api/s/${G.code}/suggest`, auth({ rid, ...payload })); toast('📨 Forslag sendt'); }
+  catch (e) { toast(esc(e.message)); }
+}
+
+// ====================================================================
+// Poster / spørgsmål
+// ====================================================================
+const auth = (o) => ({ pid: G.pid, token: G.token, ...o });
+let qState = null; // { post, question, canAskTeam, canSkip, wrongOptions:Set }
+
+async function openPost(postId) {
+  if (G.currentPost || G.finale) return;
+  const post = POSTS[postId];
+  G.currentPost = postId;
+  try {
+    const r = await api(`/api/s/${G.code}/post`, auth({ post: postId }));
+    $('qEmoji').textContent = post.emoji;
+    $('qTitle').textContent = post.name;
+    if (r.solved) {
+      G.currentPost = null;
+      toast(post.kind === 'station' ? `✅ Du har allerede et stempel fra ${esc(post.name)}` : '✅ Her er du allerede kommet igennem');
+      return;
+    }
+    if (r.locked) {
+      $('qBody').innerHTML = `<p class="qtext">🛑 "Stop! Kun festivalgæster med mindst ${G.config.stampsRequired} stempler fra festivalpladsens stande må komme forbi."</p>
+        <p>Du har ${r.stamps} ${r.stamps === 1 ? 'stempel' : 'stempler'} – du mangler <b>${r.need}</b>.</p>
+        <div class="note">Gå rundt til standene på festivalpladsen (${stationIds().map((k) => POSTS[k].emoji).join(' ')}) og svar på deres spørgsmål.</div>`;
+      openModal('qModal');
+      return;
+    }
+    qState = { post: postId, question: r.question, canAskTeam: r.canAskTeam, canSkip: r.canSkip, wrongOptions: new Set() };
+    renderQuestion();
+    openModal('qModal');
+  } catch (e) {
+    G.currentPost = null;
+    toast(esc(e.message));
+  }
+}
+
+function renderQuestion(feedback = '', fbClass = '') {
+  const q = qState.question;
+  const post = POSTS[qState.post];
+  const intro = post.kind === 'gate'
+    ? (post.final ? '🎟️ "Vil du ind til den store scene? Så skal du lige svare på det her…"' : '🛑 "Hov, hov! Du skal svare rigtigt for at komme forbi."')
+    : '🎪 "Svar rigtigt og få et stempel i dit festivalpas!"';
+  const rid = G.myHelpRid[qState.post];
+  const asked = rid && G.helps.get(rid) && !G.helps.get(rid).done;
+  const others = [...G.players.values()].filter((p) => p.id !== G.pid && p.online).length;
+  const hintsLeft = q.hintsTotal - q.hints.length;
+
+  $('qBody').innerHTML = `
+    <p class="muted">${intro}</p>
+    <p class="qtext">${esc(q.q)}</p>
+    ${q.type === 'choice'
+      ? `<div class="options">${q.options.map((o, i) => `<button class="btn ${qState.wrongOptions.has(i) ? 'wrong' : ''}" data-i="${i}" ${qState.wrongOptions.has(i) ? 'disabled' : ''}>${String.fromCharCode(65 + i)}. ${esc(o)}${suggestTag(o)}</button>`).join('')}</div>`
+      : `<form id="textAnswer" class="row" style="margin-bottom:12px"><input id="answerInput" placeholder="Dit svar" autocomplete="off" /><button class="btn primary">Svar</button></form>`}
+    <div class="feedback ${fbClass}">${feedback}</div>
+    ${q.hints.length ? `<ul class="hints">${q.hints.map((h) => `<li>💡 ${esc(h)}</li>`).join('')}</ul>` : ''}
+    <div class="helpers">
+      <button id="hintBtn" class="btn" ${hintsLeft <= 0 ? 'disabled' : ''}>💡 Hint ${hintsLeft > 0 ? `(${hintsLeft} tilbage)` : '(ingen flere)'}</button>
+      <button id="askBtn" class="btn" ${!qState.canAskTeam || asked || others === 0 ? 'disabled' : ''}>
+        ${asked ? '📨 Spurgt – venter på svar' : others === 0 ? '🆘 Ingen andre online' : qState.canAskTeam ? '🆘 Spørg holdet' : '🆘 Spørg holdet (brug hints først)'}
+      </button>
+    </div>
+    ${qState.canSkip ? `<div class="note">Vagten kan se, du har kæmpet. <button id="skipBtn" class="btn small">Lad mig komme videre</button></div>` : ''}
+    <div id="suggestBox" class="suggestions"></div>`;
+
+  $('qBody').querySelectorAll('[data-i]').forEach((b) => b.onclick = () => answer(Number(b.dataset.i)));
+  const f = $('textAnswer');
+  if (f) {
+    f.onsubmit = (e) => { e.preventDefault(); const v = $('answerInput').value.trim(); if (v) answer(v); };
+    if (!matchMedia('(hover: none)').matches) setTimeout(() => $('answerInput')?.focus(), 50);
+  }
+  $('hintBtn').onclick = getHint;
+  $('askBtn').onclick = askTeam;
+  if ($('skipBtn')) $('skipBtn').onclick = skip;
+  renderSuggestions();
+}
+
+function suggestTag(option) {
+  const rid = G.myHelpRid[qState?.post];
+  const h = rid && G.helps.get(rid);
+  if (!h) return '';
+  const n = h.suggestions.filter((s) => s.text === option).length;
+  return n ? `<span class="tag">👥 ${n}</span>` : '';
+}
+
+function renderSuggestions() {
+  const box = $('suggestBox');
+  if (!box || !qState) return;
+  const rid = G.myHelpRid[qState.post];
+  const h = rid && G.helps.get(rid);
+  if (!h) { box.innerHTML = ''; return; }
+  box.innerHTML = h.suggestions.length
+    ? '<b>Forslag fra holdet:</b>' + h.suggestions.map((s) => `<div class="s">${esc(s.avatar)} <b>${esc(s.from)}:</b> ${esc(s.text)}</div>`).join('')
+    : '<div class="note">📨 Dit spørgsmål er sendt til holdet. Deres forslag dukker op her.</div>';
+  if (qState.question.type === 'choice') {
+    // opdater 👥-mærker på svarmulighederne
+    $('qBody').querySelectorAll('[data-i]').forEach((b) => {
+      const i = Number(b.dataset.i);
+      b.innerHTML = `${String.fromCharCode(65 + i)}. ${esc(qState.question.options[i])}${suggestTag(qState.question.options[i])}`;
+    });
+  }
+}
+
+async function answer(value) {
+  const post = qState.post;
+  try {
+    const r = await api(`/api/s/${G.code}/answer`, auth({ post, answer: value }));
+    if (r.correct) {
+      const me = G.players.get(G.pid);
+      if (me && !me.solved.includes(post)) me.solved.push(post);
+      const p = POSTS[post];
+      $('qBody').innerHTML = `<div class="success"><div class="big-emoji">${p.kind === 'station' ? '🎟️' : '🎉'}</div>
+        <h3>Rigtigt!</h3><p>${p.kind === 'station' ? `Du fik et stempel fra ${esc(p.name)}.` : p.final ? 'Vagten løfter båndet… Gå ind og find en plads foran scenen!' : 'Bommen går op – du kan gå videre.'}</p>
+        <button class="btn primary big" id="contBtn">Videre ▶</button></div>`;
+      $('contBtn').onclick = () => closeModal('qModal');
+      chime();
+      updateHud();
+      if (p.final) burst(G.me.x, G.me.y - 1, 60);
+      return;
+    }
+    qState.question = r.question;
+    qState.canAskTeam = r.canAskTeam;
+    qState.canSkip = r.canSkip;
+    if (typeof value === 'number') qState.wrongOptions.add(value);
+    renderQuestion('❌ Det var ikke rigtigt – prøv igen!', 'bad');
+    beep(200, 0.15);
+  } catch (e) {
+    renderQuestion(esc(e.message), 'bad');
+  }
+}
+
+async function getHint() {
+  try {
+    const r = await api(`/api/s/${G.code}/hint`, auth({ post: qState.post }));
+    qState.question = r.question; qState.canAskTeam = r.canAskTeam; qState.canSkip = r.canSkip;
+    renderQuestion();
+  } catch (e) { toast(esc(e.message)); }
+}
+
+async function askTeam() {
+  try {
+    const r = await api(`/api/s/${G.code}/help`, auth({ post: qState.post }));
+    G.myHelpRid[qState.post] = r.rid;
+    renderQuestion('📨 Spørgsmålet er sendt til holdet!', 'good');
+  } catch (e) { toast(esc(e.message)); }
+}
+
+async function skip() {
+  try {
+    const r = await api(`/api/s/${G.code}/skip`, auth({ post: qState.post }));
+    if (r.correct) {
+      const me = G.players.get(G.pid);
+      if (me && !me.solved.includes(qState.post)) me.solved.push(qState.post);
+      closeModal('qModal');
+      toast('🙂 Vagten blinker og lader dig gå videre');
+      updateHud();
+    }
+  } catch (e) { toast(esc(e.message)); }
+}
+
+// ====================================================================
+// Input: tastatur, joystick, tryk
+// ====================================================================
+const keys = new Set();
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); e.preventDefault(); }
+  if ((k === 'e' || k === ' ' || k === 'enter') && !anyModalOpen()) { interactNearest(); e.preventDefault(); }
+  if (k === 'escape') document.querySelectorAll('.modal:not(.hidden)').forEach((m) => closeModal(m.id));
+});
+addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keys.clear());
+const anyModalOpen = () => !!document.querySelector('.modal:not(.hidden)') || !$('finale').classList.contains('hidden');
+
+const joy = { id: null, sx: 0, sy: 0, dx: 0, dy: 0, active: false, t: 0 };
+const canvas = $('canvas');
+canvas.addEventListener('pointerdown', (e) => {
+  if (joy.id !== null) return;
+  joy.id = e.pointerId; joy.sx = e.clientX; joy.sy = e.clientY; joy.dx = joy.dy = 0; joy.active = false; joy.t = performance.now();
+  canvas.setPointerCapture(e.pointerId);
+  initAudio();
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== joy.id) return;
+  const dx = e.clientX - joy.sx, dy = e.clientY - joy.sy;
+  const d = Math.hypot(dx, dy);
+  if (!joy.active && d > 12) {
+    joy.active = true;
+    $('joystick').classList.remove('hidden');
+    $('joystick').style.left = joy.sx + 'px';
+    $('joystick').style.top = joy.sy + 'px';
+  }
+  if (joy.active) {
+    const max = 50, k = Math.min(1, max / Math.max(d, 1));
+    joy.dx = (dx * k) / max; joy.dy = (dy * k) / max;
+    $('knob').style.transform = `translate(${dx * k}px, ${dy * k}px)`;
+  }
+});
+const endJoy = (e) => {
+  if (e.pointerId !== joy.id) return;
+  if (!joy.active && performance.now() - joy.t < 400) handleTap(e.clientX, e.clientY);
+  joy.id = null; joy.active = false; joy.dx = joy.dy = 0;
+  $('joystick').classList.add('hidden');
+  $('knob').style.transform = '';
+};
+canvas.addEventListener('pointerup', endJoy);
+canvas.addEventListener('pointercancel', endJoy);
+
+function screenToWorld(cx, cy) {
+  return { x: (cx - view.w / 2) / view.scale / TILE + cam.x, y: (cy - view.h / 2) / view.scale / TILE + cam.y };
+}
+function handleTap(cx, cy) {
+  const w = screenToWorld(cx, cy);
+  const tx = Math.floor(w.x), ty = Math.floor(w.y);
+  const post = interactivePostAt(tx, ty);
+  if (!post) return;
+  const d = Math.hypot(tx + 0.5 - G.me.x, ty + 0.5 - G.me.y);
+  if (d < 2.6) openPost(post);
+  else toast(`${POSTS[post].emoji} Gå tættere på ${esc(POSTS[post].name)}`, 1800);
+}
+function interactivePostAt(tx, ty) {
+  const post = postAt(tx, ty);
+  if (!post) return null;
+  if (POSTS[post].kind === 'gate' && mySolved().has(post)) return null;
+  return post;
+}
+function nearestPost(maxD = 1.9) {
+  if (!G.me) return null;
+  let best = null, bd = maxD;
+  for (let y = Math.floor(G.me.y) - 2; y <= Math.floor(G.me.y) + 2; y++)
+    for (let x = Math.floor(G.me.x) - 2; x <= Math.floor(G.me.x) + 2; x++) {
+      const p = interactivePostAt(x, y);
+      if (!p) continue;
+      const d = Math.hypot(x + 0.5 - G.me.x, y + 0.5 - G.me.y);
+      if (d < bd) { bd = d; best = p; }
+    }
+  return best;
+}
+function interactNearest() { const p = nearestPost(); if (p) openPost(p); }
+$('actionBtn').onclick = interactNearest;
+
+// ====================================================================
+// Bevægelse og kollision
+// ====================================================================
+const SPEED = 4.2; // felter pr. sekund
+const R = 0.3;
+function solidTile(tx, ty) {
+  const c = tileAt(tx, ty);
+  if (SOLID.has(c)) return true;
+  const post = LEGEND[c];
+  if (post) return POSTS[post].kind === 'station' || !mySolved().has(post);
+  return false;
+}
+function hit(x, y) {
+  for (const [cx, cy] of [[x - R, y - R], [x + R, y - R], [x - R, y + R], [x + R, y + R]]) {
+    const tx = Math.floor(cx), ty = Math.floor(cy);
+    if (solidTile(tx, ty)) return { post: postAt(tx, ty) };
+  }
+  return null;
+}
+let bump = { post: null, t: 0 };
+function onBump(post) {
+  if (!post) return;
+  const t = performance.now();
+  if (bump.post === post && t - bump.t < 600) { bump.t = t; return; }
+  bump = { post, t };
+  if (!anyModalOpen()) {
+    if (POSTS[post].kind === 'gate' && mySolved().has(post)) return;
+    openPost(post);
+  }
+}
+
+function update(dt) {
+  if (!G.me) return;
+  let vx = 0, vy = 0;
+  if (!anyModalOpen()) {
+    if (keys.has('arrowleft') || keys.has('a')) vx -= 1;
+    if (keys.has('arrowright') || keys.has('d')) vx += 1;
+    if (keys.has('arrowup') || keys.has('w')) vy -= 1;
+    if (keys.has('arrowdown') || keys.has('s')) vy += 1;
+    if (joy.active) { vx += joy.dx; vy += joy.dy; }
+  }
+  const len = Math.hypot(vx, vy);
+  if (len > 1) { vx /= len; vy /= len; }
+  const moving = len > 0.15;
+  const me = G.me;
+  if (moving) {
+    const nx = me.x + vx * SPEED * dt;
+    const hx = hit(nx, me.y);
+    if (!hx) me.x = nx; else if (Math.abs(vx) > 0.3) onBump(hx.post);
+    const ny = me.y + vy * SPEED * dt;
+    const hy = hit(me.x, ny);
+    if (!hy) me.y = ny; else if (Math.abs(vy) > 0.3) onBump(hy.post);
+    me.dir = Math.abs(vx) > Math.abs(vy) ? (vx < 0 ? 'left' : 'right') : (vy < 0 ? 'up' : 'down');
+    revealAround(me.x, me.y);
+  }
+  me.moving = moving;
+  const mp = G.players.get(G.pid);
+  if (mp) { mp.rx = me.x; mp.ry = me.y; mp.x = me.x; mp.y = me.y; }
+
+  // glat bevægelse for medspillere
+  for (const p of G.players.values()) {
+    if (p.id === G.pid) continue;
+    const k = Math.min(1, dt * 10);
+    p.rx += (p.x - p.rx) * k; p.ry += (p.y - p.ry) * k;
+  }
+
+  // vis handlingsknap når man står ved en post
+  const near = nearestPost();
+  $('actionBtn').classList.toggle('hidden', !near || anyModalOpen());
+  if (near) $('actionBtn').textContent = POSTS[near].emoji;
+
+  sendMove();
+  stageCheck();
+}
+
+let lastSent = { x: 0, y: 0, moving: false, t: 0 }, sending = false;
+async function sendMove() {
+  const me = G.me, t = performance.now();
+  if (sending || t - lastSent.t < 100) return;
+  const changed = Math.abs(me.x - lastSent.x) > 0.02 || Math.abs(me.y - lastSent.y) > 0.02 || me.moving !== lastSent.moving;
+  if (!changed && t - lastSent.t < 5000) return; // hjerteslag hvert 5. sek.
+  sending = true;
+  lastSent = { x: me.x, y: me.y, moving: me.moving, t };
+  try { await api(`/api/s/${G.code}/move`, auth({ x: me.x, y: me.y, dir: me.dir, moving: me.moving })); }
+  catch { /* ignorer */ }
+  sending = false;
+}
+
+let wasAtStage = false;
+function stageCheck() {
+  const at = mySolved().has('finale') && inRect(STAGE.crowd, G.me.x, G.me.y);
+  if (at !== wasAtStage) { wasAtStage = at; updateStageBanner(); }
+  if (at && !G.finale && Math.random() < 0.02) updateStageBanner();
+}
+
+// ====================================================================
+// Tåge (udforskede områder huskes pr. spil)
+// ====================================================================
+const exploredKey = () => `festival:fog:${G.code}:${G.pid}`;
+function loadExplored() {
+  try {
+    const s = localStorage.getItem(exploredKey());
+    if (s) for (let i = 0; i < s.length && i < G.explored.length; i++) G.explored[i] = s.charCodeAt(i) === 49 ? 1 : 0;
+  } catch {}
+}
+let fogDirty = false;
+function revealAround(x, y) {
+  const r = 4.5;
+  for (let ty = Math.floor(y - r); ty <= Math.ceil(y + r); ty++)
+    for (let tx = Math.floor(x - r); tx <= Math.ceil(x + r); tx++) {
+      if (tx < 0 || ty < 0 || tx >= W || ty >= H) continue;
+      if (Math.hypot(tx + 0.5 - x, ty + 0.5 - y) <= r && !G.explored[ty * W + tx]) { G.explored[ty * W + tx] = 1; fogDirty = true; }
+    }
+}
+setInterval(() => {
+  if (!fogDirty || !G.code) return;
+  fogDirty = false;
+  try { localStorage.setItem(exploredKey(), Array.from(G.explored, (v) => (v ? '1' : '0')).join('')); } catch {}
+}, 2000);
+
+// ====================================================================
+// Tegning
+// ====================================================================
+const ctx = canvas.getContext('2d');
+const view = { w: 0, h: 0, dpr: 1, scale: 1 };
+const cam = { x: 0, y: 0 };
+function resize() {
+  view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  view.w = innerWidth; view.h = innerHeight;
+  canvas.width = Math.round(view.w * view.dpr);
+  canvas.height = Math.round(view.h * view.dpr);
+  // Vis ca. 11-13 felter på den korteste led
+  view.scale = Math.max(0.9, Math.min(2.4, Math.min(view.w, view.h) / (TILE * 11)));
+}
+addEventListener('resize', resize);
+
+const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) ^ 0x5bf03635; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const GRASS = ['#5da545', '#62ab4a', '#58a042'];
+
+function drawGround(c, x, y, px, py) {
+  const s = TILE;
+  if (c === ',' || LEGEND[c] && POSTS[LEGEND[c]].kind === 'gate') { ctx.fillStyle = '#dcc394'; ctx.fillRect(px, py, s, s); if (hash(x, y) > 0.7) { ctx.fillStyle = '#cdb383'; ctx.fillRect(px + 8, py + 12, 4, 3); } return; }
+  if (c === '=') { ctx.fillStyle = '#55575e'; ctx.fillRect(px, py, s, s); if (x % 2 === 0) { ctx.fillStyle = '#e8e2c8'; ctx.fillRect(px + 4, py + 15, 20, 2); } return; }
+  if (c === ':') { ctx.fillStyle = (x + y) % 2 ? '#7a5c48' : '#836350'; ctx.fillRect(px, py, s, s); return; }
+  if (c === '~') {
+    ctx.fillStyle = '#3d8fd1'; ctx.fillRect(px, py, s, s);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.beginPath();
+    const o = Math.sin(performance.now() / 600 + x + y) * 3;
+    ctx.moveTo(px + 4, py + 12 + o); ctx.quadraticCurveTo(px + 12, py + 7 + o, px + 20, py + 12 + o); ctx.stroke();
+    return;
+  }
+  ctx.fillStyle = GRASS[Math.floor(hash(x, y) * 3)];
+  ctx.fillRect(px, py, s, s);
+  if (hash(y, x) > 0.82) { ctx.fillStyle = '#4c8f38'; ctx.fillRect(px + 6 + hash(x, x) * 16, py + 8 + hash(y, y) * 14, 3, 6); }
+  if (hash(x + 99, y) > 0.96) { ctx.fillStyle = ['#fff', '#ffd23f', '#ff6fa3'][Math.floor(hash(x, y + 7) * 3)]; ctx.beginPath(); ctx.arc(px + 16, py + 16, 3, 0, 7); ctx.fill(); }
+}
+
+function emoji(e, x, y, size) {
+  ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#000'; // farve-emojis arver ellers gennemsigtighed fra forrige fillStyle
+  ctx.fillText(e, x, y);
+}
+
+function drawObject(c, x, y, px, py, t) {
+  const s = TILE;
+  switch (c) {
+    case '#': {
+      ctx.fillStyle = '#8b8f99';
+      const horiz = tileAt(x - 1, y) === '#' || tileAt(x + 1, y) === '#' || /[0-9]/.test(tileAt(x - 1, y) + tileAt(x + 1, y));
+      if (horiz) { ctx.fillRect(px, py + 12, s, 3); ctx.fillRect(px, py + 21, s, 3); ctx.fillStyle = '#5d616b'; ctx.fillRect(px + 2, py + 6, 4, 22); ctx.fillRect(px + 18, py + 6, 4, 22); }
+      else { ctx.fillRect(px + 12, py, 3, s); ctx.fillRect(px + 19, py, 3, s); ctx.fillStyle = '#5d616b'; ctx.fillRect(px + 9, py + 2, 16, 4); ctx.fillRect(px + 9, py + 18, 16, 4); }
+      break;
+    }
+    case 'T': {
+      ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(px + 16, py + 27, 12, 5, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#6b4a2b'; ctx.fillRect(px + 13, py + 16, 6, 12);
+      ctx.fillStyle = hash(x, y) > 0.5 ? '#2f7a33' : '#357f2c';
+      ctx.beginPath(); ctx.arc(px + 16, py + 12, 13, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.1)'; ctx.beginPath(); ctx.arc(px + 12, py + 8, 5, 0, 7); ctx.fill();
+      break;
+    }
+    case 'S': {
+      ctx.fillStyle = '#26232e'; ctx.fillRect(px, py, s, s);
+      ctx.strokeStyle = '#4a4656'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + s, py + s); ctx.moveTo(px + s, py); ctx.lineTo(px, py + s); ctx.stroke();
+      break;
+    }
+    case 'B': {
+      const stripe = x % 2 === 0;
+      ctx.fillStyle = stripe ? '#e94f4f' : '#fff4e0'; ctx.fillRect(px, py, s, s);
+      if (tileAt(x, y - 1) !== 'B') { ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(px, py, s, 5); }
+      if (tileAt(x, y + 1) !== 'B') { ctx.fillStyle = '#b3373a'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(px + 4 + i * 8, py + s - 2, 4, 0, Math.PI); ctx.fill(); } }
+      break;
+    }
+    case 'K': {
+      const col = ['#d63b3b', '#3b78d6', '#f2c232', '#eee', '#333'][Math.floor(hash(x, y) * 5)];
+      ctx.fillStyle = col; roundRect(px + 4, py + 2, 24, 28, 6); ctx.fill();
+      ctx.fillStyle = '#9fd3ff'; ctx.fillRect(px + 8, py + 6, 16, 6); ctx.fillRect(px + 8, py + 21, 16, 5);
+      break;
+    }
+    case 'R': emoji('🚲', px + 16, py + 17, 24); break;
+    case 'X': {
+      const col = ['#ff9f1c', '#2ec4b6', '#e71d36', '#7b2ff7'][Math.floor(hash(x, y) * 4)];
+      ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(px + 2, py + 28); ctx.lineTo(px + 16, py + 4); ctx.lineTo(px + 30, py + 28); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.moveTo(px + 12, py + 28); ctx.lineTo(px + 16, py + 16); ctx.lineTo(px + 20, py + 28); ctx.fill();
+      break;
+    }
+  }
+  const postId = LEGEND[c];
+  if (postId) drawPost(postId, c, x, y, px, py, t);
+}
+
+function drawPost(postId, c, x, y, px, py, t) {
+  const post = POSTS[postId];
+  const solved = mySolved().has(postId);
+  if (post.kind === 'station') {
+    ctx.fillStyle = '#8a5a35'; roundRect(px + 1, py + 4, 30, 24, 5); ctx.fill();
+    ctx.fillStyle = '#a8703f'; ctx.fillRect(px + 1, py + 4, 30, 6);
+    emoji(post.emoji, px + 16, py + 18, 20);
+    if (solved) emoji('✅', px + 26, py + 6, 12);
+    else { const b = Math.sin(t / 300) * 2; drawBubble(px + 16, py - 6 + b, '❓'); }
+    return;
+  }
+  // bom (to felter brede – tegn detaljer kun én gang)
+  const horiz = tileAt(x - 1, y) === c || tileAt(x + 1, y) === c || tileAt(x - 1, y) === '#' || tileAt(x + 1, y) === '#';
+  const first = horiz ? tileAt(x - 1, y) !== c : tileAt(x, y - 1) !== c;
+  if (solved) {
+    if (first) { ctx.fillStyle = '#c33'; horiz ? ctx.fillRect(px - 2, py + 4, 5, 24) : ctx.fillRect(px + 4, py - 2, 24, 5); }
+    return;
+  }
+  ctx.save();
+  if (horiz) {
+    for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#fff' : '#e23d3d'; ctx.fillRect(px + i * 8, py + 13, 8, 6); }
+  } else {
+    for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#fff' : '#e23d3d'; ctx.fillRect(px + 13, py + i * 8, 6, 8); }
+  }
+  ctx.restore();
+  if (first) {
+    const cx = horiz ? px + s2() : px + 16, cy = horiz ? py + 16 : py + s2();
+    emoji(post.final ? '💂' : '🦺', cx + (horiz ? 0 : 0), cy - 2, 22);
+    const b = Math.sin(t / 300) * 2;
+    drawBubble(cx, cy - 26 + b, post.emoji);
+  }
+}
+const s2 = () => TILE; // midten af en 2-felts bom
+
+function drawBubble(x, y, e) {
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#23183f'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - 4, y + 9); ctx.lineTo(x, y + 15); ctx.lineTo(x + 4, y + 9); ctx.fill();
+  emoji(e, x, y + 1, 13);
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+function drawPlayer(p, t, isMe) {
+  const px = p.rx * TILE, py = p.ry * TILE;
+  const bob = p.moving ? Math.abs(Math.sin(t / 110)) * 4 : 0;
+  ctx.globalAlpha = p.online || isMe ? 1 : 0.45;
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(px, py + 11, 11, 5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(px, py + 2 - bob, 14, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = isMe ? 3 : 2; ctx.stroke();
+  ctx.save();
+  if (p.dir === 'left') { ctx.translate(px, 0); ctx.scale(-1, 1); ctx.translate(-px, 0); }
+  emoji(p.avatar, px, py + 2 - bob, 20);
+  ctx.restore();
+  // navneskilt
+  ctx.font = 'bold 11px system-ui, sans-serif';
+  const w = ctx.measureText(p.name).width + 10;
+  ctx.fillStyle = isMe ? 'rgba(255,79,139,.92)' : 'rgba(27,16,55,.8)';
+  roundRect(px - w / 2, py - 30 - bob, w, 15, 7); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.name, px, py - 22.5 - bob);
+  const h = [...G.helps.values()].find((x) => x.pid === p.id && !x.done);
+  if (h && !isMe) emoji('🆘', px + w / 2 + 8, py - 23 - bob, 14);
+  ctx.globalAlpha = 1;
+}
+
+function drawStageCover(t) {
+  const x = STAGE.x * TILE, y = STAGE.y * TILE, w = STAGE.w * TILE, h = STAGE.h * TILE;
+  ctx.fillStyle = '#1d2b4a'; ctx.fillRect(x, y, w, h);
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 14;
+  for (let i = -h; i < w; i += 40) { ctx.beginPath(); ctx.moveTo(x + i, y + h); ctx.lineTo(x + i + h, y); ctx.stroke(); }
+  ctx.restore();
+  // lyskegler der lækker op over hegnet
+  for (let i = 0; i < 3; i++) {
+    const a = Math.sin(t / 900 + i * 2) * 0.5;
+    ctx.save(); ctx.translate(x + w * (0.25 + i * 0.25), y + h * 0.4); ctx.rotate(a);
+    const g = ctx.createLinearGradient(0, 0, 0, -h);
+    g.addColorStop(0, 'rgba(255,220,120,.25)'); g.addColorStop(1, 'rgba(255,220,120,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(-30, -h); ctx.lineTo(30, -h); ctx.lineTo(6, 0); ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = 'bold 22px system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('🚧  ADGANG KUN MED STEMPLER  🚧', x + w / 2, y + h / 2 - 8);
+  ctx.font = '15px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.6)';
+  ctx.fillText('Hvad mon der gemmer sig bag hegnet…? 🎶', x + w / 2, y + h / 2 + 18);
+  const pulse = (Math.sin(t / 250) + 1) / 2;
+  ctx.globalAlpha = 0.3 + pulse * 0.4; emoji('🔊', x + 40, y + 40, 26); emoji('🔊', x + w - 40, y + 40, 26); ctx.globalAlpha = 1;
+}
+
+function drawConcert(t) {
+  const sx = 18 * TILE, sw = 14 * TILE, sy = 1 * TILE;
+  // lys
+  const cols = ['255,79,139', '255,182,39', '123,47,247', '46,196,182'];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.sin(t / 500 + i) * 0.6;
+    ctx.save(); ctx.translate(sx + (sw / 5) * i, sy + 6); ctx.rotate(a);
+    const g = ctx.createLinearGradient(0, 0, 0, 260);
+    g.addColorStop(0, `rgba(${cols[i % 4]},.55)`); g.addColorStop(1, `rgba(${cols[i % 4]},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(-50, 260); ctx.lineTo(50, 260); ctx.lineTo(4, 0); ctx.fill();
+    ctx.restore();
+  }
+  const band = ['🎸', '🥁', '🎤', '🎹', '🎷'];
+  band.forEach((b, i) => emoji(b, sx + 40 + i * ((sw - 80) / 4), sy + 52 + Math.abs(Math.sin(t / 180 + i)) * -8, 30));
+  if (Math.random() < 0.15) notes.push({ x: sx + Math.random() * sw, y: sy + 70, vy: -20 - Math.random() * 20, life: 2, e: ['🎵', '🎶', '✨'][Math.floor(Math.random() * 3)] });
+}
+
+// partikler
+const notes = [];
+const confetti = [];
+function burst(x, y, n) {
+  for (let i = 0; i < n; i++) confetti.push({ x: x * TILE, y: y * TILE, vx: (Math.random() - 0.5) * 300, vy: -Math.random() * 300, life: 2 + Math.random(), c: `hsl(${Math.random() * 360},90%,60%)` });
+}
+function drawParticles(dt) {
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const n = notes[i]; n.y += n.vy * dt; n.life -= dt;
+    ctx.globalAlpha = Math.max(0, n.life / 2); emoji(n.e, n.x, n.y, 16);
+    if (n.life <= 0) notes.splice(i, 1);
+  }
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const c = confetti[i]; c.vy += 400 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.life -= dt;
+    ctx.globalAlpha = Math.max(0, Math.min(1, c.life)); ctx.fillStyle = c.c; ctx.fillRect(c.x, c.y, 5, 8);
+    if (c.life <= 0) confetti.splice(i, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+
+let lastT = performance.now();
+function loop(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000);
+  lastT = t;
+  update(dt);
+  render(t, dt);
+  requestAnimationFrame(loop);
+}
+
+function render(t, dt) {
+  const { w, h, dpr, scale } = view;
+  if (G.me) {
+    // blødt kamera, der følger spilleren
+    // under finalen panorerer kameraet op til bandet
+    const atShow = G.finale && inRect(STAGE, G.me.x, G.me.y);
+    const tx = atShow ? STAGE.x + STAGE.w / 2 : G.me.x, ty = atShow ? Math.min(G.me.y, 5) : G.me.y;
+    const k = cam.init ? Math.min(1, dt * (atShow ? 2 : 8)) : 1;
+    cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k; cam.init = true;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#10131c'; ctx.fillRect(0, 0, w, h);
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * (w / 2 - cam.x * TILE * scale), dpr * (h / 2 - cam.y * TILE * scale));
+
+  const x0 = Math.max(0, Math.floor(cam.x - w / 2 / scale / TILE) - 1), x1 = Math.min(W - 1, Math.ceil(cam.x + w / 2 / scale / TILE) + 1);
+  const y0 = Math.max(0, Math.floor(cam.y - h / 2 / scale / TILE) - 1), y1 = Math.min(H - 1, Math.ceil(cam.y + h / 2 / scale / TILE) + 1);
+
+  const stageOpen = mySolved().has('finale') || !!G.finale;
+  const hiddenStage = (x, y) => !stageOpen && inRect(STAGE, x + 0.5, y + 0.5);
+  if (stageOpen && !G.stageRevealed) { // vis hele sceneområdet, når man er kommet ind
+    G.stageRevealed = true;
+    for (let y = STAGE.y; y < STAGE.y + STAGE.h; y++) for (let x = STAGE.x; x < STAGE.x + STAGE.w; x++) G.explored[y * W + x] = 1;
+  }
+
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!hiddenStage(x, y)) drawGround(MAP[y][x], x, y, x * TILE, y * TILE);
+  if (!stageOpen) drawStageCover(t); // presenningen ses altid – som et mysterium
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!hiddenStage(x, y)) drawObject(MAP[y][x], x, y, x * TILE, y * TILE, t);
+  if (G.finale) drawConcert(t);
+
+  // skilte
+  for (const l of LABELS) {
+    ctx.font = 'bold 13px system-ui, sans-serif';
+    const tw = ctx.measureText(l.text).width + 14;
+    ctx.fillStyle = 'rgba(255,250,240,.9)'; roundRect(l.x * TILE - tw / 2, l.y * TILE - 10, tw, 20, 8); ctx.fill();
+    ctx.fillStyle = '#23183f'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(l.text, l.x * TILE, l.y * TILE + 1);
+  }
+
+  // spillere (sorteret efter y så de overlapper pænt)
+  const ps = [...G.players.values()].sort((a, b) => a.ry - b.ry);
+  for (const p of ps) drawPlayer(p, t, p.id === G.pid);
+  drawParticles(dt);
+
+  // tåge
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    if (hiddenStage(x, y) || (G.finale && inRect(STAGE, x + 0.5, y + 0.5))) continue;
+    if (!G.explored[y * W + x]) { ctx.fillStyle = '#10131c'; ctx.fillRect(x * TILE - 0.5, y * TILE - 0.5, TILE + 1, TILE + 1); }
+    else if (G.me && Math.hypot(x + 0.5 - G.me.x, y + 0.5 - G.me.y) > 6) { ctx.fillStyle = 'rgba(16,19,28,.28)'; ctx.fillRect(x * TILE, y * TILE, TILE, TILE); }
+  }
+  // vis medspillere selv i tågen, så man kan finde hinanden
+  for (const p of ps) {
+    if (p.id === G.pid) continue;
+    const tx = Math.floor(p.rx), ty = Math.floor(p.ry);
+    if (tx >= 0 && ty >= 0 && tx < W && ty < H && !G.explored[ty * W + tx]) {
+      ctx.globalAlpha = 0.7; emoji(p.avatar, p.rx * TILE, p.ry * TILE, 18); ctx.globalAlpha = 1;
+    }
+  }
+
+  // pile mod medspillere uden for skærmen
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  for (const p of ps) {
+    if (p.id === G.pid || !p.online) continue;
+    const sx = (p.rx - cam.x) * TILE * scale + w / 2, sy = (p.ry - cam.y) * TILE * scale + h / 2;
+    if (sx > 0 && sx < w && sy > 0 && sy < h) continue;
+    const ang = Math.atan2(sy - h / 2, sx - w / 2);
+    const m = 28;
+    const ex = Math.max(m, Math.min(w - m, w / 2 + Math.cos(ang) * w)), ey = Math.max(m + 70, Math.min(h - m - 40, h / 2 + Math.sin(ang) * h));
+    ctx.fillStyle = p.color; ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.arc(ex, ey, 15, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+    emoji(p.avatar, ex, ey, 16);
+    ctx.save(); ctx.translate(ex, ey); ctx.rotate(ang); ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(14, -6); ctx.lineTo(14, 6); ctx.fill(); ctx.restore();
+  }
+}
+
+// ====================================================================
+// Finale
+// ====================================================================
+let finaleShown = false;
+function startFinale(d) {
+  if (finaleShown) return;
+  finaleShown = true;
+  closeModal('qModal');
+  $('finaleTeaser').textContent = d.teaser || 'Aftenens hovednavn er…';
+  $('finaleHeadliner').textContent = d.poster.headliner || '';
+  $('finalePoster').innerHTML = posterHtml(d.poster, true);
+  $('finaleMsg').textContent = d.message || '';
+  $('finale').classList.remove('hidden');
+  updateHud();
+  drumroll().then(() => { startMusic(); burst(25, 5, 150); });
+  $('finaleClose').onclick = () => { $('finale').classList.add('hidden'); burst(25, 5, 80); };
+}
+
+// ====================================================================
+// Lyd (lille syntetiseret – ingen filer)
+// ====================================================================
+let AC = null;
+function initAudio() {
+  if (AC) return;
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch { AC = null; }
+}
+document.addEventListener('pointerdown', initAudio, { once: true });
+document.addEventListener('keydown', initAudio, { once: true });
+function tone(freq, dur, type = 'sine', vol = 0.15, when = 0) {
+  if (!AC) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = freq;
+  const t0 = AC.currentTime + when;
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  o.connect(g).connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function beep(f, d) { tone(f, d, 'square', 0.05); }
+function chime() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, 'triangle', 0.12, i * 0.09)); }
+async function drumroll() {
+  if (!AC) { await sleep(2200); return; }
+  for (let i = 0; i < 22; i++) { noiseHit(0.05, 0.04 + i * 0.004); await sleep(100); }
+  tone(80, 0.6, 'sine', 0.5); noiseHit(0.5, 0.25);
+}
+function noiseHit(dur, vol) {
+  if (!AC) return;
+  const b = AC.createBuffer(1, AC.sampleRate * dur, AC.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const s = AC.createBufferSource(), g = AC.createGain(); g.gain.value = vol;
+  s.buffer = b; s.connect(g).connect(AC.destination); s.start();
+}
+let musicOn = false;
+function startMusic() {
+  if (!AC || musicOn) return;
+  musicOn = true;
+  const bass = [110, 110, 146.8, 130.8], mel = [440, 523, 587, 659, 587, 523, 440, 392];
+  let step = 0;
+  const tick = () => {
+    if (step > 32 * 8) return; // ca. 32 takter
+    const b = step % 8;
+    if (b % 2 === 0) tone(60, 0.18, 'sine', 0.35);               // stortromme
+    if (b === 2 || b === 6) noiseHit(0.12, 0.12);                  // lilletromme
+    noiseHit(0.03, 0.03);                                           // hihat
+    tone(bass[Math.floor(step / 8) % 4], 0.22, 'sawtooth', 0.05);
+    if (step % 2 === 0) tone(mel[(step / 2) % 8], 0.2, 'triangle', 0.06);
+    step++;
+    setTimeout(tick, 220);
+  };
+  tick();
+}
+
+}
+</script>

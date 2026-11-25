@@ -1,0 +1,19 @@
+{
+  "_kommentar": "PLADSHOLDERE – ret til jeres rigtige festival. Denne fil sendes ALDRIG til browseren; kun de dele, holdet har låst op, vises.",
+  "festivalName": "SOLSKINSFESTIVALEN",
+  "tagline": "Tre dage med musik, mad og venner",
+  "date": "19.–21. juni",
+  "place": "Engen bag skoven",
+  "lineup": [
+    "De Glade Trommer",
+    "Kaptajn Kazoo",
+    "Månekatten",
+    "Svedbåndet",
+    "Lille Lørdag",
+    "Bølgebryderne"
+  ],
+  "headliner": "STJERNESKUD",
+  "headlinerTeaser": "Aftenens hemmelige hovednavn er...",
+  "finaleMessage": "Tak fordi I hjalp hinanden hele vejen frem. Rock on! 🤘",
+  "stampsRequired": 3
+}

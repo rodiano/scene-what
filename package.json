@@ -1,0 +1,14 @@
+{
+  "name": "festivalspillet",
+  "version": "1.0.0",
+  "description": "Samarbejdende multiplayer-festivalspil i browseren",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node tools/check-map.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED",
+  "private": true
+}
