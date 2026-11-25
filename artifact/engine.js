@@ -20,7 +20,9 @@ const ENGINE = (() => {
 
   let roomApi = null;          // lobby-room (eller null)
   const roomP = (async () => {
-    try { roomApi = await window.claude?.use?.('room'); } catch { roomApi = null; }
+    try { roomApi = window.claude?.use ? await window.claude.use('room') : null; } catch { roomApi = null; }
+    // Uden for claude.ai (fx GitHub Pages): brug peer-to-peer via PeerJS, hvis det er med i bygget
+    if (!roomApi && typeof PEER_ROOM !== 'undefined' && PEER_ROOM) roomApi = PEER_ROOM;
     return roomApi;
   })();
   let room = null, roomCode = null, unsub = null;
@@ -351,7 +353,7 @@ const ENGINE = (() => {
           help: [...s.helps.values()].filter((h) => !h.done),
           finale: me.finale ? { poster: s.poster, teaser: FEST.headlinerTeaser, message: FEST.finaleMessage, players: [] } : null,
         });
-        if (!room) this._emit('toast', { text: 'Solo-tilstand: live-samspil er ikke tilgængeligt i denne visning' });
+        if (!room) this._emit('toast', { text: 'Solo-tilstand: kunne ikke forbinde til medspillere – du kan stadig spille alene' });
       }, 0);
       // hold online-status frisk
       this._iv = setInterval(() => onChange(), 3000);

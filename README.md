@@ -72,6 +72,33 @@ Kør `npm run check` efter ændringer i kortet. Den tjekker, at alle startsteder
 - Bag en reverse proxy (nginx) skal buffering være slået fra for `/api/s/*/events` (Server-Sent Events).
 - Brug HTTPS i produktion. Del-knappen og udklipsholderen på mobil kræver det.
 
+## GitHub Pages (uden server)
+
+Spillet kan også køre som en statisk side på GitHub Pages. Her forbindes spillernes browsere
+direkte til hinanden via WebRTC med [PeerJS](https://peerjs.com/), så der er ingen server at drive.
+
+- Workflowet `.github/workflows/pages.yml` bygger og udgiver siden ved hvert push til `main`.
+- Første gang: Gå til **Settings → Pages** i repoet og vælg **Source: GitHub Actions**.
+  Pages fra et privat repo kræver en betalt GitHub-plan.
+- Del-knappen kopierer et link med koden, fx `https://<bruger>.github.io/scene-what/#K7QM2X`.
+- Byg lokalt med `python3 artifact/build.py --pages _site`, og åbn `_site/index.html` via en lokal webserver.
+
+Sådan virker det: Spil-koden bestemmer et fast id. Den første spiller bliver "hub" og videresender
+alles tilstand til de andre. Lukker hubben fanen, overtager en af de andre automatisk efter ca. 10 sekunder.
+Hver spiller husker sit eget fremskridt i browseren.
+
+Begrænsninger i version 1:
+- **Spørgsmål og svar ligger i sidens kildekode.** Brug Node-versionen, hvis svarene skal være skjult.
+- Forbindelsen etableres via PeerJS' gratis offentlige server (`0.peerjs.com`). Man kan bruge en egen
+  server med `?peerhost=min.server.dk&peerport=443&peerpath=/`.
+- Der er ingen TURN-server, så enkelte firma- og skolenetværk kan forhindre forbindelsen.
+  Spillet kører så videre for én spiller.
+- Holdet ser kun de spillere, der har siden åben lige nu.
+
+Filer: `artifact/peer-room.js` (peer-to-peer), `artifact/engine.js` (spillogik i browseren),
+`artifact/vendor/peerjs.min.js` (PeerJS 1.5.4, MIT-licens) og `artifact/build.py` (bygger både
+artifact- og Pages-versionen).
+
 ## Teknik
 
 - `server.js`: Node `http`, real-time via Server-Sent Events og POST-kald. Ingen afhængigheder.

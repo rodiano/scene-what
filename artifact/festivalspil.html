@@ -527,7 +527,9 @@ const ENGINE = (() => {
 
   let roomApi = null;          // lobby-room (eller null)
   const roomP = (async () => {
-    try { roomApi = await window.claude?.use?.('room'); } catch { roomApi = null; }
+    try { roomApi = window.claude?.use ? await window.claude.use('room') : null; } catch { roomApi = null; }
+    // Uden for claude.ai (fx GitHub Pages): brug peer-to-peer via PeerJS, hvis det er med i bygget
+    if (!roomApi && typeof PEER_ROOM !== 'undefined' && PEER_ROOM) roomApi = PEER_ROOM;
     return roomApi;
   })();
   let room = null, roomCode = null, unsub = null;
@@ -858,7 +860,7 @@ const ENGINE = (() => {
           help: [...s.helps.values()].filter((h) => !h.done),
           finale: me.finale ? { poster: s.poster, teaser: FEST.headlinerTeaser, message: FEST.finaleMessage, players: [] } : null,
         });
-        if (!room) this._emit('toast', { text: 'Solo-tilstand: live-samspil er ikke tilgængeligt i denne visning' });
+        if (!room) this._emit('toast', { text: 'Solo-tilstand: kunne ikke forbinde til medspillere – du kan stadig spille alene' });
       }, 0);
       // hold online-status frisk
       this._iv = setInterval(() => onChange(), 3000);
@@ -908,6 +910,13 @@ const loadCreds = (code) => { try { return JSON.parse(localStorage.getItem(creds
 const saveCreds = (code, c) => { try { localStorage.setItem(credsKey(code), JSON.stringify(c)); localStorage.setItem('festival:last', code); } catch {} };
 
 async function share(code) {
+  if (window.__PAGES__) {
+    const url = location.origin + location.pathname + '#' + code;
+    if (navigator.share) { try { await navigator.share({ title: 'Festivalspillet', text: `Kom med til festivalen! 🎪 Kode: ${code}`, url }); return; } catch {} }
+    try { await navigator.clipboard.writeText(url); toast('🔗 Link kopieret – send det til dit hold'); }
+    catch { toast(`🔑 Spil-koden er <b>${code}</b> – send den til dit hold`, 6000); }
+    return;
+  }
   try { await navigator.clipboard.writeText(code); toast(`🔑 Koden ${code} er kopieret – send den til dit hold`); }
   catch { toast(`🔑 Spil-koden er <b>${code}</b> – send den til dit hold`, 6000); }
 }

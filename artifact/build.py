@@ -1,5 +1,5 @@
 # Bygger en enkelt HTML-fil til claude.ai-artifact ud fra spillets kilder.
-import json, re, pathlib
+import json, re, pathlib, sys, shutil
 R = pathlib.Path(__file__).resolve().parent.parent
 world = (R/'public/world.js').read_text()
 world = re.sub(r'^export ', '', world, flags=re.M)
@@ -14,6 +14,13 @@ game = sub("new EventSource(", "new ENGINE.FakeEventSource(", game)
 game = sub("EventSource.CLOSED", "2", game)
 game = sub(r"history\.replaceState\([^;]*;", "", game, regex=True)
 game = sub(r"function shareLink\(code\).*?\nasync function share\(code\) \{.*?\n\}\n", """async function share(code) {
+  if (window.__PAGES__) {
+    const url = location.origin + location.pathname + '#' + code;
+    if (navigator.share) { try { await navigator.share({ title: 'Festivalspillet', text: `Kom med til festivalen! 🎪 Kode: ${code}`, url }); return; } catch {} }
+    try { await navigator.clipboard.writeText(url); toast('🔗 Link kopieret – send det til dit hold'); }
+    catch { toast(`🔑 Spil-koden er <b>${code}</b> – send den til dit hold`, 6000); }
+    return;
+  }
   try { await navigator.clipboard.writeText(code); toast(`🔑 Koden ${code} er kopieret – send den til dit hold`); }
   catch { toast(`🔑 Spil-koden er <b>${code}</b> – send den til dit hold`, 6000); }
 }
@@ -52,6 +59,37 @@ const QUESTIONS_DATA = {js_json(qs)};
 }}
 </script>
 """
-dst = R/'artifact/festivalspil.html'
-dst.write_text(out)
-print(dst, len(out))
+if len(sys.argv) >= 3 and sys.argv[1] == '--pages':
+    # Fuldt HTML-dokument til GitHub Pages med peer-to-peer-multiplayer (PeerJS)
+    site = pathlib.Path(sys.argv[2]).resolve(); site.mkdir(parents=True, exist_ok=True)
+    peer = (R/'artifact/peer-room.js').read_text()
+    script = f"""<script>window.__PAGES__ = true;</script>
+<script src="peerjs.min.js"></script>
+<script>
+{{
+const FESTIVAL_DATA = {js_json(fest)};
+const QUESTIONS_DATA = {js_json(qs)};
+{world}
+{peer}
+{engine}
+{game}
+}}
+</script>"""
+    head = """<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1b1037">
+<title>Festivalspillet</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎪</text></svg>">
+"""
+    doc = head + f"<style>\n{css}\n</style>\n</head>\n<body>\n{body}\n{script}\n</body>\n</html>\n"
+    (site/'index.html').write_text(doc)
+    shutil.copy(R/'artifact/vendor/peerjs.min.js', site/'peerjs.min.js')
+    (site/'.nojekyll').write_text('')
+    print(site/'index.html', len(doc))
+else:
+    dst = R/'artifact/festivalspil.html'
+    dst.write_text(out)
+    print(dst, len(out))
