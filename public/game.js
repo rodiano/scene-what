@@ -222,7 +222,13 @@ function connect() {
     G.helps = new Map(d.help.map((h) => [h.rid, h]));
     for (const h of d.help) if (h.pid === G.pid) G.myHelpRid[h.post] = h.rid;
     renderChat(); renderHelps(); renderPoster(); updateHud();
-    if (d.finale && !G.finale) { G.finale = d.finale; }
+    if (d.finale && !G.finale) {
+      // Finalen er allerede i gang (fx genindlæst side): vis showet, hvis denne fane ikke har set det
+      G.finale = d.finale;
+      let seen = false;
+      try { seen = tabStore.getItem(`festival:povseen:${G.code}`) === '1'; } catch {}
+      if (!seen) startFinale(d.finale);
+    }
   });
   es.addEventListener('players', (e) => { setPlayers(JSON.parse(e.data).players, false); });
   es.addEventListener('poster', (e) => { G.poster = JSON.parse(e.data); renderPoster(); updateHud(); });
@@ -402,17 +408,29 @@ $('chatForm').onsubmit = async (e) => {
 
 function posterHtml(p, big = false) {
   if (!p) return '';
-  const name = p.name.map((c) => c === ' ' ? '&nbsp; ' : c ? `<span class="shown-letter">${esc(c)}</span>` : '<span class="hidden-letter">_</span>').join('');
-  const pct = Math.round((p.progress?.ratio || 0) * 100);
+  // et kunstnernavn som bogstaver; null = endnu ikke afsløret
+  const band = (chars) => chars.map((c) => (c === null ? '<span class="hl">_</span>' : c === ' ' ? '<span class="sp"></span>' : `<span class="sl">${esc(c)}</span>`)).join('');
+  const lineup = `<div class="lineup">${p.lineup.map((ch) => `<div>${band(ch)}</div>`).join('')}</div>`;
+  if (!p.final) {
+    const pct = Math.round((p.progress?.ratio || 0) * 100);
+    return `<div class="poster locked">
+      <div class="lock-title">🔒 ? ? ?</div>
+      <div class="lock-sub">Festivalens navn, dato og sted afsløres først, når hele holdet står samlet foran scenen.</div>
+      <div class="headliner-box">🔒 HEMMELIGT HOVEDNAVN</div>
+      <div class="lineup-label">Kunstnerne – afsløres bogstav for bogstav</div>
+      ${lineup}
+      ${big ? '' : `<div class="poster-progress"><div class="bar"><div style="width:${pct}%"></div></div>
+      <p>Holdet har afsløret ${p.revealed} af ${p.total} bogstaver. Hver post, nogen på holdet klarer, afslører flere.</p></div>`}
+    </div>`;
+  }
+  const size = Math.max(20, Math.min(40, Math.floor(560 / Math.max(8, (p.name || '').length))));
   return `<div class="poster">
     <div style="font-size:14px;opacity:.8">✨ VELKOMMEN TIL ✨</div>
-    <div class="pname" style="font-size:${Math.max(18, Math.min(38, Math.floor(520 / Math.max(8, p.name.length))))}px">${name}</div>
-    <div class="tagline">${p.tagline ? esc(p.tagline) : '· · ·'}</div>
-    <div class="meta"><span>📅 ${p.date ? esc(p.date) : '???'}</span><span>📍 ${p.place ? esc(p.place) : '???'}</span></div>
-    <div class="headliner-box ${p.headliner ? 'revealed' : ''}">${p.headliner ? '⭐ ' + esc(p.headliner) + ' ⭐' : '🔒 HEMMELIGT HOVEDNAVN'}</div>
-    <div class="lineup">${p.lineup.map((b) => b ? `<div>${esc(b)}</div>` : '<div class="q">? ? ?</div>').join('')}</div>
-    ${big ? '' : `<div class="poster-progress"><div class="bar"><div style="width:${pct}%"></div></div>
-    <p>Holdet har låst ${p.revealed} af ${p.total} plakatbrikker op. Hver post, nogen på holdet klarer, afslører mere.<br>Hovednavnet afsløres først, når hele holdet står foran scenen.</p></div>`}
+    <div class="pname" style="font-size:${size}px">${esc(p.name)}</div>
+    <div class="tagline">${esc(p.tagline || '')}</div>
+    <div class="meta"><span>📅 ${esc(p.date || '')}</span><span>📍 ${esc(p.place || '')}</span></div>
+    <div class="headliner-box revealed">⭐ ${esc(p.headliner || '')} ⭐</div>
+    ${lineup}
   </div>`;
 }
 let lastRevealed = -1;
@@ -420,7 +438,7 @@ function renderPoster() {
   if (!G.poster) return;
   $('poster').innerHTML = posterHtml(G.poster);
   if (lastRevealed >= 0 && G.poster.revealed > lastRevealed && !G.finale) {
-    toast(`🧩 Ny plakatbrik! <button class="btn small">Se plakaten</button>`, 4500)
+    toast(`🎤 Nye bogstaver i kunstnernes navne! <button class="btn small">Se plakaten</button>`, 4500)
       .querySelector('button').onclick = () => openModal('posterModal');
   }
   lastRevealed = G.poster.revealed;
@@ -625,7 +643,7 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
-const anyModalOpen = () => !!document.querySelector('.modal:not(.hidden)') || !$('finale').classList.contains('hidden');
+const anyModalOpen = () => !!document.querySelector('.modal:not(.hidden)') || !$('pov').classList.contains('hidden');
 
 const joy = { id: null, sx: 0, sy: 0, dx: 0, dy: 0, active: false, t: 0 };
 const canvas = $('canvas');
@@ -1120,19 +1138,235 @@ function render(t, dt) {
 // ====================================================================
 // Finale
 // ====================================================================
+// Man ser scenen fra publikum (POV). Lyset dæmpes, der tælles ned, scenetæppet
+// falder, og først DÉR afsløres festivalens navn, dato, sted og hovednavn.
 let finaleShown = false;
+const POV = { run: 0, active: false, mode: 'house', conf: [], lasers: false, t0: 0 };
+const reducedMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+
+function buildCrowd() {
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const hands = ['🙌', '✋', '🤘', '👐', '✌️'];
+  const head = (left, bottom, size, opacity, extra = '', inner = '') =>
+    `<div class="crowd-head ${extra.cls || ''}" style="left:${left}%;bottom:${bottom}vh;width:${size * 0.95}vh;height:${size}vh;font-size:${size * 0.32}vh;opacity:${opacity};${extra.style || ''}">
+      <div class="body"></div><div class="hand" style="animation-delay:${(rnd() * 0.7).toFixed(2)}s">${hands[Math.floor(rnd() * hands.length)]}</div>${inner}</div>`;
+  const parts = [];
+  // baggrundsrækker – mindre og længere væk
+  for (let i = 0; i < 18; i++) parts.push(head(i * 6 + rnd() * 4 - 2, 11 + rnd() * 3, 7 + rnd() * 2, 0.75));
+  for (let i = 0; i < 13; i++) parts.push(head(i * 8.5 + rnd() * 4 - 1, 5 + rnd() * 2, 10 + rnd() * 3, 0.9));
+  // holdet står forrest i midten, set bagfra
+  const team = [...G.players.values()].filter((p) => p.online || p.id === G.pid);
+  // størrelse og afstand efter skærmbredden, så figurer og navneskilte ikke overlapper
+  const vh = innerHeight / 100;
+  const slot = Math.min(innerWidth * 0.86 / Math.max(1, team.length), 15 * vh * 1.25);
+  const portrait = innerHeight > innerWidth * 4 / 3;
+  const size = Math.min(portrait ? 11 : 15, (slot / 1.2) / vh);
+  const span = (slot * team.length) / innerWidth * 100;
+  const stagger = slot < 110; // smalle skærme: skiftevis højt og lavt navneskilt
+  team.forEach((p, i) => {
+    const left = 50 - span / 2 + (span * (i + 0.5)) / team.length;
+    parts.push(head(left, portrait ? 7 : -2, size, 1, { cls: 'team', style: `--c:${esc(p.color)};--lift:${stagger && i % 2 ? 1.9 : 0}em;z-index:2` },
+      `<div class="tag">${esc(p.avatar)} ${esc(p.name)}${p.id === G.pid ? ' (dig)' : ''}</div>`));
+  });
+  // lidt publikum ude i siderne af forreste række
+  for (const left of [4, 12, 88, 96]) parts.push(head(left + rnd() * 3, -3, 16 + rnd() * 3, 1));
+  $('povCrowd').innerHTML = parts.join('');
+}
+
+// Navn og hovednavn gøres så store som muligt uden at knække ord på skærmen
+function fitPovText() {
+  for (const [id, max] of [['povName', 0.075], ['povHead', 0.095]]) {
+    const el = $(id);
+    el.classList.add('measuring'); // mål uden bogstavernes startanimation
+    let size = Math.max(22, Math.min(innerWidth, innerHeight) * max);
+    el.style.fontSize = size + 'px';
+    let guard = 0;
+    while (el.scrollWidth > el.clientWidth + 1 && size > 16 && guard++ < 80) { size -= 1; el.style.fontSize = size + 'px'; }
+    el.classList.remove('measuring');
+  }
+}
+addEventListener('resize', () => { if (POV.active) fitPovText(); });
+
+// Lys, laser og konfetti tegnes på et lærred oven på scenen
+function povFxLoop() {
+  const cv = $('povFx');
+  const c = cv.getContext('2d');
+  const tick = (t) => {
+    if (!POV.active) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), W = innerWidth, Hh = innerHeight;
+    if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); }
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, W, Hh);
+    c.globalCompositeOperation = 'lighter';
+    const r = $('povStage').getBoundingClientRect();
+    const roofY = r.top + r.height * 0.07;
+    const sec = (t - POV.t0) / 1000;
+    // dis foran scenen
+    const haze = c.createRadialGradient(r.left + r.width / 2, r.bottom, 10, r.left + r.width / 2, r.bottom, r.width * 0.8);
+    const hz = POV.mode === 'show' ? 0.22 : POV.mode === 'spots' ? 0.08 : 0.12;
+    haze.addColorStop(0, `rgba(140,90,255,${hz})`); haze.addColorStop(1, 'rgba(140,90,255,0)');
+    c.fillStyle = haze; c.fillRect(0, 0, W, Hh);
+    const cone = (x, y, ang, len, spread, rgb, a) => {
+      c.save(); c.translate(x, y); c.rotate(ang);
+      const g = c.createLinearGradient(0, 0, 0, len);
+      g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`);
+      c.fillStyle = g; c.beginPath(); c.moveTo(-3, 0); c.lineTo(-spread, len); c.lineTo(spread, len); c.lineTo(3, 0); c.fill(); c.restore();
+    };
+    if (POV.mode === 'spots') {
+      // to følgespots, der leder efter noget på tæppet
+      for (let i = 0; i < 2; i++) {
+        const tx = r.left + r.width * (0.5 + 0.28 * Math.sin(sec * 1.3 + i * 2.4)), ty = r.top + r.height * 0.5;
+        const sx = i ? r.right + 40 : r.left - 40, sy = r.top - 20;
+        const ang = Math.atan2(tx - sx, ty - sy);
+        cone(sx, sy, -ang, Math.hypot(tx - sx, ty - sy) + 40, 70, '255,245,220', 0.35);
+        c.fillStyle = 'rgba(255,245,220,0.18)'; c.beginPath(); c.ellipse(tx, ty, 80, 60, 0, 0, 7); c.fill();
+      }
+    }
+    if (POV.mode === 'show') {
+      const cols = ['255,79,139', '255,182,39', '123,47,247', '46,196,182', '80,160,255', '255,255,255'];
+      for (let i = 0; i < 6; i++) {
+        const x = r.left + r.width * (0.1 + i * 0.16);
+        const ang = Math.sin(sec * (0.9 + i * 0.13) + i) * 0.7;
+        cone(x, roofY, ang, Hh * 1.1, 90, cols[(i + Math.floor(sec / 2)) % cols.length], 0.33);
+      }
+      if (POV.lasers) {
+        c.lineWidth = 2;
+        for (let i = 0; i < 14; i++) {
+          const a = -Math.PI / 2 + (i - 6.5) * 0.17 + Math.sin(sec * 1.7) * 0.35;
+          const x0 = r.left + r.width / 2, y0 = r.bottom - r.height * 0.1;
+          c.strokeStyle = i % 2 ? 'rgba(60,255,140,0.55)' : 'rgba(255,60,200,0.5)';
+          c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + Math.cos(a) * W, y0 + Math.sin(a) * W); c.stroke();
+        }
+      }
+    }
+    c.globalCompositeOperation = 'source-over';
+    for (let i = POV.conf.length - 1; i >= 0; i--) {
+      const p = POV.conf[i];
+      p.vy += 300 / 60; p.x += p.vx / 60; p.y += p.vy / 60; p.vx *= 0.99; p.rot += p.vr; p.life -= 1 / 60;
+      c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.fillStyle = p.col; c.globalAlpha = Math.max(0, Math.min(1, p.life));
+      c.fillRect(-4, -2.5, 8, 5); c.restore();
+      if (p.life <= 0 || p.y > Hh + 20) POV.conf.splice(i, 1);
+    }
+    c.globalAlpha = 1;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function povConfetti(n) {
+  if (reducedMotion()) n = Math.floor(n / 4);
+  const r = $('povStage').getBoundingClientRect();
+  for (let i = 0; i < n; i++) {
+    const side = i % 2 ? r.left + r.width * 0.12 : r.right - r.width * 0.12;
+    POV.conf.push({ x: side, y: r.top + r.height * 0.15, vx: (side < innerWidth / 2 ? 1 : -1) * (80 + Math.random() * 380), vy: -200 - Math.random() * 380, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3, life: 4 + Math.random() * 2, col: `hsl(${Math.floor(Math.random() * 360)},95%,62%)` });
+  }
+}
+function povFlash() {
+  if (reducedMotion()) return;
+  const f = $('povFlash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+}
+function povCaption(text, cls = '') {
+  const el = $('povCaption');
+  el.className = 'pov-caption'; void el.offsetWidth;
+  if (cls) el.classList.add(cls);
+  el.textContent = text;
+}
+
 function startFinale(d) {
   if (finaleShown) return;
   finaleShown = true;
-  closeModal('qModal');
-  $('finaleTeaser').textContent = d.teaser || 'Aftenens hovednavn er…';
-  $('finaleHeadliner').textContent = d.poster.headliner || '';
-  $('finalePoster').innerHTML = posterHtml(d.poster, true);
-  $('finaleMsg').textContent = d.message || '';
-  $('finale').classList.remove('hidden');
+  try { tabStore.setItem(`festival:povseen:${G.code}`, '1'); } catch {}
+  document.querySelectorAll('.modal:not(.hidden)').forEach((m) => closeModal(m.id));
+  const P = d.poster || G.poster || {};
+  const run = ++POV.run;
+  const alive = () => POV.run === run;
+
+  let li = 0;
+  $('povName').innerHTML = String(P.name || '').split(' ').map((word) =>
+    `<span class="w">${[...word].map((ch) => `<i style="animation-delay:${(li++ * 0.06).toFixed(2)}s">${esc(ch)}</i>`).join('')}</span>`).join(' ');
+  $('povMeta').innerHTML = [P.date && `📅 <b>${esc(P.date)}</b>`, P.place && `📍 <b>${esc(P.place)}</b>`].filter(Boolean).join(' &nbsp;·&nbsp; ')
+    + (P.tagline ? `<div style="font-weight:500;opacity:.85;font-size:.85em;margin-top:.3em">${esc(P.tagline)}</div>` : '');
+  $('povTeaser').textContent = d.teaser || 'Aftenens hemmelige hovednavn er…';
+  $('povHead').textContent = P.headliner || '';
+  $('povLineup').innerHTML = (P.lineup || []).map((ch) => `<span>${esc(Array.isArray(ch) ? ch.join('') : ch)}</span>`).join('');
+  buildCrowd();
+  $('pov').className = 'pov';
+  $('povCurtain').className = 'pov-curtain';
+  $('povCurtain').style.display = '';
+  document.querySelectorAll('#povScreen > div, #povLineup span').forEach((e) => e.classList.remove('on'));
+  $('povActions').classList.remove('on');
+  $('povSkip').hidden = false;
+  fitPovText();
+  POV.active = true; POV.mode = 'house'; POV.lasers = false; POV.conf = []; POV.t0 = performance.now();
+  povFxLoop();
   updateHud();
-  drumroll().then(() => { startMusic(); burst(25, 5, 150); });
-  $('finaleClose').onclick = () => { $('finale').classList.add('hidden'); burst(25, 5, 80); };
+
+  const showAll = () => {
+    $('pov').classList.remove('dim', 'pulse');
+    $('pov').classList.add('cheer');
+    $('povCurtain').style.display = 'none';
+    document.querySelectorAll('#povScreen > div, #povLineup span').forEach((e) => e.classList.add('on'));
+    POV.mode = 'show'; POV.lasers = true;
+    povCaption('');
+    $('povMsg').textContent = d.message || '';
+    $('povActions').classList.add('on');
+    $('povSkip').hidden = true;
+    murmurStop(0.5);
+    startMusic();
+  };
+  $('povSkip').onclick = () => { POV.run++; showAll(); };
+  $('povClose').onclick = () => { $('pov').classList.add('hidden'); POV.active = false; burst(25, 5, 80); };
+  $('povPoster').onclick = () => { renderPoster(); openModal('posterModal'); };
+
+  (async () => {
+    murmurStart();
+    povCaption('Hele holdet er samlet foran scenen…');
+    await sleep(2800); if (!alive()) return;
+    $('pov').classList.add('dim', 'pulse');
+    POV.mode = 'spots';
+    povCaption('Lyset dæmpes…');
+    await drumroll(); if (!alive()) return;
+    for (const n of ['3', '2', '1']) {
+      povCaption(n, 'count'); boom(0.3);
+      await sleep(850); if (!alive()) return;
+    }
+    // Scenetæppet falder!
+    povCaption('');
+    $('povCurtain').classList.add('drop');
+    setTimeout(() => { if (alive()) $('povCurtain').style.display = 'none'; }, 1150);
+    whoosh();
+    setTimeout(() => { if (alive()) { boom(0.9); povFlash(); cheer(); } }, 380);
+    murmurStop(0.4);
+    await sleep(500); if (!alive()) return;
+    $('pov').classList.remove('dim', 'pulse');
+    POV.mode = 'show';
+    povConfetti(160);
+    await sleep(500); if (!alive()) return;
+    $('povKicker').classList.add('on');
+    await sleep(500); if (!alive()) return;
+    $('povName').classList.add('on');
+    await sleep(1800); if (!alive()) return;
+    $('povMeta').classList.add('on');
+    await sleep(2000); if (!alive()) return;
+    $('povTeaser').classList.add('on');
+    drumrollShort();
+    await sleep(1800); if (!alive()) return;
+    $('povHead').classList.add('on');
+    boom(1); povFlash(); cheer(1.3);
+    POV.lasers = true;
+    $('pov').classList.add('cheer');
+    povConfetti(220);
+    startMusic();
+    burst(25, 5, 150);
+    for (const [i, el] of [...document.querySelectorAll('#povLineup span')].entries()) {
+      await sleep(i ? 260 : 1400); if (!alive()) return;
+      el.classList.add('on');
+    }
+    await sleep(900); if (!alive()) return;
+    $('povMsg').textContent = d.message || '';
+    $('povActions').classList.add('on');
+    $('povSkip').hidden = true;
+  })();
 }
 
 // ====================================================================
@@ -1167,6 +1401,58 @@ function noiseHit(dur, vol) {
   const s = AC.createBufferSource(), g = AC.createGain(); g.gain.value = vol;
   s.buffer = b; s.connect(g).connect(AC.destination); s.start();
 }
+// ---- lyde til finalen ----
+function noiseBuffer(dur) {
+  const b = AC.createBuffer(1, Math.floor(AC.sampleRate * dur), AC.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return b;
+}
+let murmurNode = null;
+function murmurStart() { // publikum der summer
+  if (!AC || murmurNode) return;
+  const s = AC.createBufferSource(); s.buffer = noiseBuffer(2); s.loop = true;
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 480; f.Q.value = 0.7;
+  const g = AC.createGain(); g.gain.setValueAtTime(0, AC.currentTime); g.gain.linearRampToValueAtTime(0.06, AC.currentTime + 1.5);
+  s.connect(f).connect(g).connect(AC.destination); s.start();
+  murmurNode = { s, g };
+}
+function murmurStop(fade = 1) {
+  if (!AC || !murmurNode) return;
+  const { s, g } = murmurNode; murmurNode = null;
+  g.gain.cancelScheduledValues(AC.currentTime); g.gain.setValueAtTime(g.gain.value, AC.currentTime);
+  g.gain.linearRampToValueAtTime(0, AC.currentTime + fade); s.stop(AC.currentTime + fade + 0.05);
+}
+function whoosh() { // tæppet suser ned
+  if (!AC) return;
+  const s = AC.createBufferSource(); s.buffer = noiseBuffer(1);
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
+  f.frequency.setValueAtTime(300, AC.currentTime); f.frequency.exponentialRampToValueAtTime(3500, AC.currentTime + 0.7);
+  const g = AC.createGain(); g.gain.setValueAtTime(0.001, AC.currentTime); g.gain.exponentialRampToValueAtTime(0.3, AC.currentTime + 0.45); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.95);
+  s.connect(f).connect(g).connect(AC.destination); s.start();
+}
+function boom(vol = 1) { // dyb bas
+  tone(48, 1.1, 'sine', 0.55 * vol); tone(96, 0.35, 'triangle', 0.15 * vol); noiseHit(0.25, 0.12 * vol);
+}
+function cheer(len = 1) { // publikum jubler
+  if (!AC) return;
+  const dur = 4.5 * len;
+  const s = AC.createBufferSource(); s.buffer = noiseBuffer(dur);
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 0.6;
+  const g = AC.createGain(); g.gain.setValueAtTime(0.001, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.16, AC.currentTime + 0.5); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+  s.connect(f).connect(g).connect(AC.destination); s.start();
+  for (let i = 0; i < 6; i++) { // enkelte "wuhuu"-råb
+    const o = AC.createOscillator(), og = AC.createGain(), t0 = AC.currentTime + 0.2 + Math.random() * 1.5;
+    o.type = 'sine'; o.frequency.setValueAtTime(500 + Math.random() * 300, t0); o.frequency.exponentialRampToValueAtTime(1000 + Math.random() * 400, t0 + 0.4);
+    og.gain.setValueAtTime(0.001, t0); og.gain.exponentialRampToValueAtTime(0.025, t0 + 0.1); og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
+    o.connect(og).connect(AC.destination); o.start(t0); o.stop(t0 + 0.65);
+  }
+}
+async function drumrollShort() {
+  if (!AC) return;
+  for (let i = 0; i < 14; i++) { noiseHit(0.04, 0.03 + i * 0.004); await sleep(85); }
+}
+
 let musicOn = false;
 function startMusic() {
   if (!AC || musicOn) return;

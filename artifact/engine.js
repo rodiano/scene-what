@@ -106,12 +106,19 @@ const ENGINE = (() => {
   }
 
   // ---------- plakat ----------
+  // Under spillet afsløres KUN kunstnerne, bogstav for bogstav (højst 80 %).
+  // Festivalnavn, dato, sted og hovednavn vises først i finalen.
+  const isChar = (c) => /[\p{L}\p{N}]/u.test(c);
+  function revealOrder() {
+    const firsts = [], rest = [];
+    FEST.lineup.forEach((name, b) => {
+      let first = true;
+      [...name].forEach((c, i) => { if (!isChar(c)) return; (first ? firsts : rest).push(`${b}:${i}`); first = false; });
+    });
+    return [...seededShuffle(firsts, code), ...seededShuffle(rest, code + 'x')];
+  }
   function posterView(players, full) {
-    const name = FEST.festivalName;
-    const order = {
-      pieces: seededShuffle([...FEST.lineup.map((_, i) => `band:${i}`), 'date', 'place', 'tagline'], code),
-      letters: seededShuffle([...name].map((_, i) => i).filter((i) => name[i] !== ' '), code + 'x'),
-    };
+    const order = revealOrder();
     let solved = 0;
     for (const p of players) {
       const gates = p.solved.filter((k) => POSTS[k].kind === 'gate').length;
@@ -120,19 +127,17 @@ const ENGINE = (() => {
     }
     const required = Math.max(1, players.length * (2 + STAMPS_REQUIRED + 1));
     const ratio = Math.min(1, solved / required);
-    const pc = full ? Infinity : Math.floor(ratio * order.pieces.length);
-    const lc = full ? Infinity : Math.floor(ratio * 0.85 * order.letters.length);
-    const sp = new Set(order.pieces.slice(0, pc)), sl = new Set(order.letters.slice(0, lc));
-    const total = order.pieces.length + order.letters.length + 1;
+    const shown = full ? order.length : Math.floor(ratio * 0.8 * order.length);
+    const set = new Set(order.slice(0, shown));
     return {
-      name: [...name].map((c, i) => (c === ' ' ? ' ' : sl.has(i) ? c : null)),
-      tagline: sp.has('tagline') ? FEST.tagline : null,
-      date: sp.has('date') ? FEST.date : null,
-      place: sp.has('place') ? FEST.place : null,
-      lineup: FEST.lineup.map((b, i) => (sp.has(`band:${i}`) ? b : null)),
+      final: !!full,
+      lineup: FEST.lineup.map((name, b) => [...name].map((c, i) => (!isChar(c) || full || set.has(`${b}:${i}`) ? c : null))),
+      name: full ? FEST.festivalName : null,
+      tagline: full ? FEST.tagline : null,
+      date: full ? FEST.date : null,
+      place: full ? FEST.place : null,
       headliner: full ? FEST.headliner : null,
-      revealed: full ? total : sp.size + sl.size,
-      total, progress: { solved, required, ratio },
+      revealed: shown, total: order.length, progress: { solved, required, ratio },
     };
   }
 

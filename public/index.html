@@ -59,7 +59,7 @@
       <button id="codeChip" class="chip" title="Del koden">🔑 <b id="hudCode"></b></button>
       <div id="objective" class="objective"></div>
       <div class="hud-buttons">
-        <button id="posterBtn" class="chip">🧩 <span id="posterCount">0</span></button>
+        <button id="posterBtn" class="chip" title="Festivalplakaten">🎤 <span id="posterCount">0</span></button>
         <button id="teamBtn" class="chip">👥 <span id="teamCount">1</span></button>
         <button id="helpBtn" class="chip hidden">🆘 <span id="helpCount" class="badge">0</span></button>
         <button id="chatBtn" class="chip">💬 <span id="chatBadge" class="badge hidden">0</span></button>
@@ -128,15 +128,33 @@
     </div>
   </div>
 
-  <!-- FINALE -->
-  <div id="finale" class="hidden">
-    <div class="finale-inner">
-      <div id="finaleTeaser" class="teaser"></div>
-      <div id="finaleHeadliner" class="headliner"></div>
-      <div id="finalePoster"></div>
-      <p id="finaleMsg" class="finale-msg"></p>
-      <button id="finaleClose" class="btn">Se koncerten 🎶</button>
+  <!-- FINALE: man står i publikum og kigger op mod scenen -->
+  <div id="pov" class="pov hidden" aria-live="polite">
+    <div class="pov-sky"></div>
+    <div class="pov-stage" id="povStage">
+      <div class="pov-roof"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="pov-tower left"></div><div class="pov-tower right"></div>
+      <div class="pov-screen" id="povScreen">
+        <div class="pov-kicker" id="povKicker">Velkommen til</div>
+        <div class="pov-name" id="povName"></div>
+        <div class="pov-meta" id="povMeta"></div>
+        <div class="pov-teaser" id="povTeaser"></div>
+        <div class="pov-head" id="povHead"></div>
+      </div>
+      <div class="pov-curtain" id="povCurtain"><div class="pov-emblem">?</div></div>
+      <div class="pov-deck"></div>
     </div>
+    <canvas id="povFx"></canvas>
+    <div class="pov-lineup" id="povLineup"></div>
+    <div class="pov-crowd" id="povCrowd"></div>
+    <div class="pov-caption" id="povCaption"></div>
+    <div class="pov-flash" id="povFlash"></div>
+    <div class="pov-actions" id="povActions">
+      <p id="povMsg" class="pov-msg"></p>
+      <button id="povPoster" class="btn">🎟️ Se plakaten</button>
+      <button id="povClose" class="btn primary">🎶 Til festivalen</button>
+    </div>
+    <button id="povSkip" class="pov-skip">Spring over ⏭</button>
   </div>
 
   <script src="/vendor/qrcode.js"></script>

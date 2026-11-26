@@ -29,10 +29,16 @@ npm start            # eller: node server.js
 4. **Festivalpladsen:** Her ligger 6 stande: madbod, merch, bar, teltscene, info/førstehjælp og
    toiletkø. Man skal have `STAMPS_REQUIRED` stempler (standard 3).
 5. **Scenevagten:** Spørgsmålet her lukker op til hovedscenen, som indtil da er skjult under en presenning.
-6. **Finale:** Når alle online spillere står foran scenen, afsløres hovednavnet, og koncerten starter.
+6. **Finale:** Når alle online spillere står foran scenen, skifter skærmen til en scene set fra publikum.
+   Lyset dæmpes, følgespots leder over scenetæppet, der tælles ned fra 3, og tæppet falder.
+   Derefter afsløres festivalens navn, dato og sted og til sidst det hemmelige hovednavn, med lys,
+   laser, konfetti, jubel og musik. Holdets figurer står forrest i publikum, set bagfra. Kommer man til
+   eller genindlæser under finalen, ser man forløbet én gang i den fane. Man kan springe forløbet over.
 
-**Plakaten:** Hver post, som nogen på holdet klarer, låser brikker op på en fælles festivalplakat.
-Den viser bands, dato, sted og bogstaverne i festivalnavnet. Hovednavnet afsløres først i finalen.
+**Plakaten (🎤):** Under spillet afslører plakaten kun kunstnerne, bogstav for bogstav. Hver post, som
+nogen på holdet klarer, afslører flere bogstaver. Først kommer forbogstaverne, og højst 80 % afsløres
+før finalen. Festivalens navn, dato, sted og hovednavn sendes slet ikke til browserne, før hele holdet
+står samlet foran scenen.
 
 **Hjælp:** Ved hvert spørgsmål kan man få 2 hints. Når man har brugt sine hints eller svaret forkert
 2 gange, kan man trykke **Spørg holdet**. Medspillerne får besked og kan sende forslag. Forslagene

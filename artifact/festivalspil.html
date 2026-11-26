@@ -215,30 +215,101 @@ label input { margin-top: 6px; font-weight: 400; }
 .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width 0.6s; }
 .poster-progress p { font-size: 13px; opacity: 0.8; margin: 6px 0 0; }
 
-/* ---------- Finale ---------- */
-#finale { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(5, 2, 15, 0.7); padding: 16px; overflow-y: auto; }
-.finale-inner { width: 100%; max-width: 520px; text-align: center; color: #fff; margin: auto; }
-.teaser { font-size: 20px; opacity: 0; animation: fadeIn 1s 0.3s forwards; }
-.headliner { font-size: clamp(36px, 12vw, 64px); font-weight: 900; letter-spacing: 4px; margin: 10px 0 20px; opacity: 0;
-  animation: reveal 1.4s 2.2s forwards; text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent2); }
-#finalePoster { opacity: 0; animation: fadeIn 1s 3.6s forwards; }
-.finale-msg { font-size: 18px; opacity: 0; animation: fadeIn 1s 4.2s forwards; }
-#finaleClose { opacity: 0; animation: fadeIn 1s 4.6s forwards; }
-
 @keyframes bob { 50% { transform: translateY(-8px); } }
 @keyframes pulse { 50% { transform: scale(1.07); } }
 @keyframes toastIn { from { transform: translateY(-10px); opacity: 0; } }
 @keyframes sheetIn { from { transform: translateY(30px); opacity: 0; } }
 @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
 @keyframes pop { 0% { transform: scale(0.3); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
-@keyframes fadeIn { to { opacity: 1; } }
-@keyframes reveal { 0% { opacity: 0; transform: scale(0.2) rotate(-8deg); filter: blur(12px); } 100% { opacity: 1; transform: none; filter: none; } }
 
 /* QR-kode til hurtig deltagelse */
 .qr { width: min(220px, 60vw); margin: 4px auto 10px; background: #fff; border-radius: 14px; padding: 8px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
 .qr svg { display: block; width: 100%; height: auto; }
 .qr small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
 .qr.small { width: min(150px, 45vw); margin-top: 10px; }
+
+/* ---------- Plakat under spillet (låst) ---------- */
+.poster.locked .lock-title { font-size: clamp(26px, 8vw, 40px); font-weight: 900; letter-spacing: 6px; margin: 6px 0 2px; }
+.poster.locked .lock-sub { font-size: 14px; opacity: 0.85; margin: 0 auto 4px; max-width: 34ch; line-height: 1.4; }
+.poster .lineup-label { font-size: 13px; opacity: 0.8; margin: 4px 0 8px; }
+.poster .lineup .hl { display: inline-block; min-width: 0.62em; color: rgba(255,255,255,0.3); }
+.poster .lineup .sl { display: inline-block; animation: pop 0.4s; }
+.poster .lineup .sp { display: inline-block; width: 0.45em; }
+
+/* ---------- Finale: POV foran scenen ---------- */
+.pov { --stageH: min(52vh, 560px); position: fixed; inset: 0; z-index: 30; overflow: hidden; background: #05020f; color: #fff; user-select: none; -webkit-user-select: none; }
+.pov-sky { position: absolute; inset: 0; background: radial-gradient(120% 70% at 50% 18%, #2a1458 0%, #12082c 45%, #05020f 80%); transition: filter 2s; }
+.pov.dim .pov-sky { filter: brightness(0.45); }
+.pov-stage { position: absolute; left: 50%; top: max(5vh, env(safe-area-inset-top)); transform: translateX(-50%); width: min(94vw, 980px); height: var(--stageH); }
+.pov-roof { position: absolute; left: -2%; right: -2%; top: 0; height: 7%; background: repeating-linear-gradient(60deg, #3b3d49 0 6px, #1b1c24 6px 14px); border-bottom: 3px solid #4a4c5a; display: flex; justify-content: space-around; align-items: flex-end; z-index: 3; }
+.pov-roof i { width: 14px; height: 18px; background: #222; border-radius: 0 0 6px 6px; margin-bottom: -16px; box-shadow: 0 6px 12px rgba(255, 220, 160, 0.25); }
+.pov-tower { position: absolute; top: 0; bottom: 0; width: 7%; background: repeating-linear-gradient(0deg, #2c2e38 0 10px, #15161d 10px 20px); z-index: 3; }
+.pov-tower.left { left: -2%; }
+.pov-tower.right { right: -2%; }
+.pov-tower::after { content: ''; position: absolute; left: -40%; right: -40%; bottom: 0; height: 38%; background: #0b0b10; border: 2px solid #23242c; border-radius: 4px; box-shadow: inset 0 0 0 6px #141519; }
+.pov-screen { position: absolute; left: 6%; right: 6%; top: 8%; bottom: 13%; background-color: #07060d; background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1.4px); background-size: 6px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 0.6vmin; padding: 2%; overflow: hidden; }
+.pov-screen > div { opacity: 0; transform: translateY(12px) scale(0.96); transition: opacity 0.8s, transform 0.8s; }
+.pov-screen > div.on { opacity: 1; transform: none; }
+.pov-kicker { font-size: clamp(13px, 2.4vmin, 22px); letter-spacing: 0.3em; text-transform: uppercase; color: #ffd27a; }
+.pov-name { font-size: clamp(26px, 7.2vmin, 76px); font-weight: 900; letter-spacing: 0.04em; line-height: 1.05; text-shadow: 0 0 18px #ff4f8b, 0 0 42px #7b2ff7; max-width: 100%; }
+.pov-name .w { display: inline-block; white-space: nowrap; }
+.pov-name i { font-style: normal; display: inline-block; opacity: 0; transform: translateY(-40px) scale(1.6); }
+.pov-name.on i { animation: letterIn 0.5s forwards; }
+.pov-meta { font-size: clamp(13px, 2.6vmin, 24px); font-weight: 700; opacity: 0.95; }
+.pov-meta b { color: #ffd27a; font-weight: 800; }
+.pov-teaser { font-size: clamp(12px, 2.2vmin, 20px); font-style: italic; color: #cfc4ff; margin-top: 1vmin; }
+.pov-head { font-size: clamp(30px, 9vmin, 96px); font-weight: 900; letter-spacing: 0.06em; color: #fff7d6; text-shadow: 0 0 12px #ffb627, 0 0 34px #ff4f8b, 0 0 70px #ff4f8b; line-height: 1; max-width: 100%; }
+.pov-head.on { animation: headIn 1.2s cubic-bezier(.2,.9,.3,1.2), glow 1.6s 1.2s ease-in-out infinite alternate; }
+.pov-curtain { position: absolute; left: 4%; right: 4%; top: 6.5%; bottom: 8%; z-index: 2; transform-origin: top center;
+  background: repeating-linear-gradient(90deg, #5e0716 0, #a3132b 3.5%, #c41c36 5%, #a3132b 6.5%, #5e0716 10%);
+  box-shadow: inset 0 -30px 40px rgba(0,0,0,0.45), inset 0 30px 30px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
+.pov-curtain::after { content: ''; position: absolute; left: 0; right: 0; bottom: -10px; height: 14px; background: repeating-linear-gradient(90deg, #f2c14e 0 6px, #b88a22 6px 9px); border-radius: 0 0 6px 6px; }
+.pov-emblem { width: clamp(70px, 16vmin, 150px); aspect-ratio: 1; border-radius: 50%; border: 4px solid #f2c14e; color: #f2c14e; font-weight: 900; font-size: clamp(40px, 10vmin, 96px); display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.25); }
+.pov.pulse .pov-emblem { animation: pulse 0.5s infinite; }
+.pov-curtain.drop { animation: curtainDrop 1.05s cubic-bezier(.55,0,.9,.35) forwards; }
+.pov-deck { position: absolute; left: -1%; right: -1%; bottom: 0; height: 9%; background: linear-gradient(#1d1b26, #0b0a10); border-top: 3px solid #3a3846; z-index: 3; }
+#povFx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: screen; }
+.pov-lineup { position: absolute; left: 50%; transform: translateX(-50%); top: calc(var(--stageH) + max(5vh, env(safe-area-inset-top)) + 1.5vh); width: min(94vw, 980px); display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; z-index: 4; }
+.pov-lineup span { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25); padding: 5px 10px; border-radius: 999px; font-weight: 700; font-size: clamp(12px, 2vmin, 16px); opacity: 0; transform: translateY(20px); transition: opacity 0.5s, transform 0.5s; }
+.pov-lineup span.on { opacity: 1; transform: none; }
+.pov-crowd { position: absolute; left: 0; right: 0; bottom: 0; height: 30vh; pointer-events: none; }
+.crowd-head { position: absolute; bottom: 0; transform: translateX(-50%); }
+.crowd-head .body { width: 100%; height: 100%; background: #07050d; border-radius: 48% 48% 18% 18% / 60% 60% 18% 18%; position: relative; }
+.crowd-head .body::before { content: ''; position: absolute; left: 50%; top: -42%; width: 46%; aspect-ratio: 1; transform: translateX(-50%); background: inherit; border-radius: 50%; }
+.crowd-head .hand { position: absolute; left: 50%; top: -95%; margin-left: -0.5em; opacity: 0; transition: opacity 0.3s; }
+.pov.cheer .crowd-head .hand { opacity: 1; animation: wave 0.7s ease-in-out infinite alternate; }
+.crowd-head.team .body { background: var(--c); box-shadow: 0 0 0 2px rgba(255,255,255,0.35); }
+.crowd-head.team .tag { position: absolute; left: 50%; top: calc(-66% - var(--lift, 0em)); transform: translateX(-50%); white-space: nowrap; font-size: 13px; font-weight: 800; background: rgba(0,0,0,0.65); border: 1px solid var(--c); border-radius: 999px; padding: 2px 8px; }
+.pov-caption { position: absolute; left: 50%; top: calc(max(5vh, env(safe-area-inset-top)) + var(--stageH) * 0.45); transform: translate(-50%, -50%); width: min(90vw, 700px); text-align: center; font-weight: 800; font-size: clamp(18px, 4vmin, 34px); text-shadow: 0 2px 12px #000; z-index: 4; transition: opacity 0.6s; }
+.pov-caption.count { font-size: clamp(70px, 22vmin, 200px); color: #ffd27a; animation: countIn 0.8s ease-out; }
+.pov-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 5; }
+.pov-flash.go { animation: flash 0.7s ease-out; }
+.pov-actions { position: absolute; left: 0; right: 0; bottom: 0; padding-top: 28px !important; padding-bottom: calc(env(safe-area-inset-bottom) + 14px) !important; background: linear-gradient(rgba(5,2,15,0), rgba(5,2,15,0.88) 45%); display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 0 16px; opacity: 0; pointer-events: none; transition: opacity 0.8s; z-index: 6; }
+.pov-actions.on { opacity: 1; pointer-events: auto; }
+.pov-msg { flex-basis: 100%; text-align: center; margin: 0 0 2px; font-weight: 700; font-size: clamp(13px, 2.2vmin, 18px); text-shadow: 0 2px 8px #000; }
+.pov-actions .btn { padding: 10px 16px; font-size: 15px; }
+.pov-name.measuring i { transform: none !important; animation: none !important; }
+/* høje, smalle skærme (mobil på højkant): lavere scene og mindre bundpanel */
+@media (max-aspect-ratio: 3/4) {
+  .pov { --stageH: 40vh; }
+  .pov-crowd { height: 26vh; }
+  .pov-actions { gap: 6px; padding-top: 18px !important; }
+  .pov-actions .btn { padding: 9px 12px; font-size: 14px; }
+}
+#posterModal { z-index: 40; }
+.pov-skip { position: absolute; right: 12px; top: calc(env(safe-area-inset-top) + 10px); z-index: 7; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+@keyframes curtainDrop { 0% { transform: none; } 12% { transform: translateY(-2%) scaleY(1.02); } 55% { opacity: 1; } 100% { transform: translateY(150%) scaleY(0.85); opacity: 0; } }
+@keyframes letterIn { 70% { opacity: 1; transform: translateY(4px) scale(0.95); } 100% { opacity: 1; transform: none; } }
+@keyframes headIn { 0% { opacity: 0; transform: scale(0.2); filter: blur(14px); } 100% { opacity: 1; transform: none; filter: none; } }
+@keyframes glow { to { text-shadow: 0 0 18px #ffd27a, 0 0 50px #ff4f8b, 0 0 100px #7b2ff7; } }
+@keyframes countIn { from { transform: translate(-50%, -50%) scale(2.2); opacity: 0; } }
+@keyframes flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+@keyframes wave { to { transform: translateY(-8px) rotate(-8deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pov-flash.go { animation: none; }
+  .pov-curtain.drop { animation-duration: 0.01s; }
+  .pov.cheer .crowd-head .hand { animation: none; }
+}
 
 .net-text { background: #f3edff; border-radius: 12px; padding: 8px 12px; font-size: 14px; margin: 0 0 12px; }
 
@@ -295,7 +366,7 @@ label input { margin-top: 6px; font-weight: 400; }
       <button id="codeChip" class="chip" title="Del koden">🔑 <b id="hudCode"></b></button>
       <div id="objective" class="objective"></div>
       <div class="hud-buttons">
-        <button id="posterBtn" class="chip">🧩 <span id="posterCount">0</span></button>
+        <button id="posterBtn" class="chip" title="Festivalplakaten">🎤 <span id="posterCount">0</span></button>
         <button id="teamBtn" class="chip"><span id="netDot" title="Forbindelse til holdet">⚪</span> 👥 <span id="teamCount">1</span></button>
         <button id="helpBtn" class="chip hidden">🆘 <span id="helpCount" class="badge">0</span></button>
         <button id="chatBtn" class="chip">💬 <span id="chatBadge" class="badge hidden">0</span></button>
@@ -365,15 +436,33 @@ label input { margin-top: 6px; font-weight: 400; }
     </div>
   </div>
 
-  <!-- FINALE -->
-  <div id="finale" class="hidden">
-    <div class="finale-inner">
-      <div id="finaleTeaser" class="teaser"></div>
-      <div id="finaleHeadliner" class="headliner"></div>
-      <div id="finalePoster"></div>
-      <p id="finaleMsg" class="finale-msg"></p>
-      <button id="finaleClose" class="btn">Se koncerten 🎶</button>
+  <!-- FINALE: man står i publikum og kigger op mod scenen -->
+  <div id="pov" class="pov hidden" aria-live="polite">
+    <div class="pov-sky"></div>
+    <div class="pov-stage" id="povStage">
+      <div class="pov-roof"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="pov-tower left"></div><div class="pov-tower right"></div>
+      <div class="pov-screen" id="povScreen">
+        <div class="pov-kicker" id="povKicker">Velkommen til</div>
+        <div class="pov-name" id="povName"></div>
+        <div class="pov-meta" id="povMeta"></div>
+        <div class="pov-teaser" id="povTeaser"></div>
+        <div class="pov-head" id="povHead"></div>
+      </div>
+      <div class="pov-curtain" id="povCurtain"><div class="pov-emblem">?</div></div>
+      <div class="pov-deck"></div>
     </div>
+    <canvas id="povFx"></canvas>
+    <div class="pov-lineup" id="povLineup"></div>
+    <div class="pov-crowd" id="povCrowd"></div>
+    <div class="pov-caption" id="povCaption"></div>
+    <div class="pov-flash" id="povFlash"></div>
+    <div class="pov-actions" id="povActions">
+      <p id="povMsg" class="pov-msg"></p>
+      <button id="povPoster" class="btn">🎟️ Se plakaten</button>
+      <button id="povClose" class="btn primary">🎶 Til festivalen</button>
+    </div>
+    <button id="povSkip" class="pov-skip">Spring over ⏭</button>
   </div>
 
   
@@ -625,12 +714,19 @@ const ENGINE = (() => {
   }
 
   // ---------- plakat ----------
+  // Under spillet afsløres KUN kunstnerne, bogstav for bogstav (højst 80 %).
+  // Festivalnavn, dato, sted og hovednavn vises først i finalen.
+  const isChar = (c) => /[\p{L}\p{N}]/u.test(c);
+  function revealOrder() {
+    const firsts = [], rest = [];
+    FEST.lineup.forEach((name, b) => {
+      let first = true;
+      [...name].forEach((c, i) => { if (!isChar(c)) return; (first ? firsts : rest).push(`${b}:${i}`); first = false; });
+    });
+    return [...seededShuffle(firsts, code), ...seededShuffle(rest, code + 'x')];
+  }
   function posterView(players, full) {
-    const name = FEST.festivalName;
-    const order = {
-      pieces: seededShuffle([...FEST.lineup.map((_, i) => `band:${i}`), 'date', 'place', 'tagline'], code),
-      letters: seededShuffle([...name].map((_, i) => i).filter((i) => name[i] !== ' '), code + 'x'),
-    };
+    const order = revealOrder();
     let solved = 0;
     for (const p of players) {
       const gates = p.solved.filter((k) => POSTS[k].kind === 'gate').length;
@@ -639,19 +735,17 @@ const ENGINE = (() => {
     }
     const required = Math.max(1, players.length * (2 + STAMPS_REQUIRED + 1));
     const ratio = Math.min(1, solved / required);
-    const pc = full ? Infinity : Math.floor(ratio * order.pieces.length);
-    const lc = full ? Infinity : Math.floor(ratio * 0.85 * order.letters.length);
-    const sp = new Set(order.pieces.slice(0, pc)), sl = new Set(order.letters.slice(0, lc));
-    const total = order.pieces.length + order.letters.length + 1;
+    const shown = full ? order.length : Math.floor(ratio * 0.8 * order.length);
+    const set = new Set(order.slice(0, shown));
     return {
-      name: [...name].map((c, i) => (c === ' ' ? ' ' : sl.has(i) ? c : null)),
-      tagline: sp.has('tagline') ? FEST.tagline : null,
-      date: sp.has('date') ? FEST.date : null,
-      place: sp.has('place') ? FEST.place : null,
-      lineup: FEST.lineup.map((b, i) => (sp.has(`band:${i}`) ? b : null)),
+      final: !!full,
+      lineup: FEST.lineup.map((name, b) => [...name].map((c, i) => (!isChar(c) || full || set.has(`${b}:${i}`) ? c : null))),
+      name: full ? FEST.festivalName : null,
+      tagline: full ? FEST.tagline : null,
+      date: full ? FEST.date : null,
+      place: full ? FEST.place : null,
       headliner: full ? FEST.headliner : null,
-      revealed: full ? total : sp.size + sl.size,
-      total, progress: { solved, required, ratio },
+      revealed: shown, total: order.length, progress: { solved, required, ratio },
     };
   }
 
@@ -1111,7 +1205,13 @@ function connect() {
     G.helps = new Map(d.help.map((h) => [h.rid, h]));
     for (const h of d.help) if (h.pid === G.pid) G.myHelpRid[h.post] = h.rid;
     renderChat(); renderHelps(); renderPoster(); updateHud();
-    if (d.finale && !G.finale) { G.finale = d.finale; }
+    if (d.finale && !G.finale) {
+      // Finalen er allerede i gang (fx genindlæst side): vis showet, hvis denne fane ikke har set det
+      G.finale = d.finale;
+      let seen = false;
+      try { seen = tabStore.getItem(`festival:povseen:${G.code}`) === '1'; } catch {}
+      if (!seen) startFinale(d.finale);
+    }
   });
   es.addEventListener('players', (e) => { setPlayers(JSON.parse(e.data).players, false); });
   es.addEventListener('poster', (e) => { G.poster = JSON.parse(e.data); renderPoster(); updateHud(); });
@@ -1291,17 +1391,29 @@ $('chatForm').onsubmit = async (e) => {
 
 function posterHtml(p, big = false) {
   if (!p) return '';
-  const name = p.name.map((c) => c === ' ' ? '&nbsp; ' : c ? `<span class="shown-letter">${esc(c)}</span>` : '<span class="hidden-letter">_</span>').join('');
-  const pct = Math.round((p.progress?.ratio || 0) * 100);
+  // et kunstnernavn som bogstaver; null = endnu ikke afsløret
+  const band = (chars) => chars.map((c) => (c === null ? '<span class="hl">_</span>' : c === ' ' ? '<span class="sp"></span>' : `<span class="sl">${esc(c)}</span>`)).join('');
+  const lineup = `<div class="lineup">${p.lineup.map((ch) => `<div>${band(ch)}</div>`).join('')}</div>`;
+  if (!p.final) {
+    const pct = Math.round((p.progress?.ratio || 0) * 100);
+    return `<div class="poster locked">
+      <div class="lock-title">🔒 ? ? ?</div>
+      <div class="lock-sub">Festivalens navn, dato og sted afsløres først, når hele holdet står samlet foran scenen.</div>
+      <div class="headliner-box">🔒 HEMMELIGT HOVEDNAVN</div>
+      <div class="lineup-label">Kunstnerne – afsløres bogstav for bogstav</div>
+      ${lineup}
+      ${big ? '' : `<div class="poster-progress"><div class="bar"><div style="width:${pct}%"></div></div>
+      <p>Holdet har afsløret ${p.revealed} af ${p.total} bogstaver. Hver post, nogen på holdet klarer, afslører flere.</p></div>`}
+    </div>`;
+  }
+  const size = Math.max(20, Math.min(40, Math.floor(560 / Math.max(8, (p.name || '').length))));
   return `<div class="poster">
     <div style="font-size:14px;opacity:.8">✨ VELKOMMEN TIL ✨</div>
-    <div class="pname" style="font-size:${Math.max(18, Math.min(38, Math.floor(520 / Math.max(8, p.name.length))))}px">${name}</div>
-    <div class="tagline">${p.tagline ? esc(p.tagline) : '· · ·'}</div>
-    <div class="meta"><span>📅 ${p.date ? esc(p.date) : '???'}</span><span>📍 ${p.place ? esc(p.place) : '???'}</span></div>
-    <div class="headliner-box ${p.headliner ? 'revealed' : ''}">${p.headliner ? '⭐ ' + esc(p.headliner) + ' ⭐' : '🔒 HEMMELIGT HOVEDNAVN'}</div>
-    <div class="lineup">${p.lineup.map((b) => b ? `<div>${esc(b)}</div>` : '<div class="q">? ? ?</div>').join('')}</div>
-    ${big ? '' : `<div class="poster-progress"><div class="bar"><div style="width:${pct}%"></div></div>
-    <p>Holdet har låst ${p.revealed} af ${p.total} plakatbrikker op. Hver post, nogen på holdet klarer, afslører mere.<br>Hovednavnet afsløres først, når hele holdet står foran scenen.</p></div>`}
+    <div class="pname" style="font-size:${size}px">${esc(p.name)}</div>
+    <div class="tagline">${esc(p.tagline || '')}</div>
+    <div class="meta"><span>📅 ${esc(p.date || '')}</span><span>📍 ${esc(p.place || '')}</span></div>
+    <div class="headliner-box revealed">⭐ ${esc(p.headliner || '')} ⭐</div>
+    ${lineup}
   </div>`;
 }
 let lastRevealed = -1;
@@ -1309,7 +1421,7 @@ function renderPoster() {
   if (!G.poster) return;
   $('poster').innerHTML = posterHtml(G.poster);
   if (lastRevealed >= 0 && G.poster.revealed > lastRevealed && !G.finale) {
-    toast(`🧩 Ny plakatbrik! <button class="btn small">Se plakaten</button>`, 4500)
+    toast(`🎤 Nye bogstaver i kunstnernes navne! <button class="btn small">Se plakaten</button>`, 4500)
       .querySelector('button').onclick = () => openModal('posterModal');
   }
   lastRevealed = G.poster.revealed;
@@ -1514,7 +1626,7 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
-const anyModalOpen = () => !!document.querySelector('.modal:not(.hidden)') || !$('finale').classList.contains('hidden');
+const anyModalOpen = () => !!document.querySelector('.modal:not(.hidden)') || !$('pov').classList.contains('hidden');
 
 const joy = { id: null, sx: 0, sy: 0, dx: 0, dy: 0, active: false, t: 0 };
 const canvas = $('canvas');
@@ -2009,19 +2121,235 @@ function render(t, dt) {
 // ====================================================================
 // Finale
 // ====================================================================
+// Man ser scenen fra publikum (POV). Lyset dæmpes, der tælles ned, scenetæppet
+// falder, og først DÉR afsløres festivalens navn, dato, sted og hovednavn.
 let finaleShown = false;
+const POV = { run: 0, active: false, mode: 'house', conf: [], lasers: false, t0: 0 };
+const reducedMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+
+function buildCrowd() {
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const hands = ['🙌', '✋', '🤘', '👐', '✌️'];
+  const head = (left, bottom, size, opacity, extra = '', inner = '') =>
+    `<div class="crowd-head ${extra.cls || ''}" style="left:${left}%;bottom:${bottom}vh;width:${size * 0.95}vh;height:${size}vh;font-size:${size * 0.32}vh;opacity:${opacity};${extra.style || ''}">
+      <div class="body"></div><div class="hand" style="animation-delay:${(rnd() * 0.7).toFixed(2)}s">${hands[Math.floor(rnd() * hands.length)]}</div>${inner}</div>`;
+  const parts = [];
+  // baggrundsrækker – mindre og længere væk
+  for (let i = 0; i < 18; i++) parts.push(head(i * 6 + rnd() * 4 - 2, 11 + rnd() * 3, 7 + rnd() * 2, 0.75));
+  for (let i = 0; i < 13; i++) parts.push(head(i * 8.5 + rnd() * 4 - 1, 5 + rnd() * 2, 10 + rnd() * 3, 0.9));
+  // holdet står forrest i midten, set bagfra
+  const team = [...G.players.values()].filter((p) => p.online || p.id === G.pid);
+  // størrelse og afstand efter skærmbredden, så figurer og navneskilte ikke overlapper
+  const vh = innerHeight / 100;
+  const slot = Math.min(innerWidth * 0.86 / Math.max(1, team.length), 15 * vh * 1.25);
+  const portrait = innerHeight > innerWidth * 4 / 3;
+  const size = Math.min(portrait ? 11 : 15, (slot / 1.2) / vh);
+  const span = (slot * team.length) / innerWidth * 100;
+  const stagger = slot < 110; // smalle skærme: skiftevis højt og lavt navneskilt
+  team.forEach((p, i) => {
+    const left = 50 - span / 2 + (span * (i + 0.5)) / team.length;
+    parts.push(head(left, portrait ? 7 : -2, size, 1, { cls: 'team', style: `--c:${esc(p.color)};--lift:${stagger && i % 2 ? 1.9 : 0}em;z-index:2` },
+      `<div class="tag">${esc(p.avatar)} ${esc(p.name)}${p.id === G.pid ? ' (dig)' : ''}</div>`));
+  });
+  // lidt publikum ude i siderne af forreste række
+  for (const left of [4, 12, 88, 96]) parts.push(head(left + rnd() * 3, -3, 16 + rnd() * 3, 1));
+  $('povCrowd').innerHTML = parts.join('');
+}
+
+// Navn og hovednavn gøres så store som muligt uden at knække ord på skærmen
+function fitPovText() {
+  for (const [id, max] of [['povName', 0.075], ['povHead', 0.095]]) {
+    const el = $(id);
+    el.classList.add('measuring'); // mål uden bogstavernes startanimation
+    let size = Math.max(22, Math.min(innerWidth, innerHeight) * max);
+    el.style.fontSize = size + 'px';
+    let guard = 0;
+    while (el.scrollWidth > el.clientWidth + 1 && size > 16 && guard++ < 80) { size -= 1; el.style.fontSize = size + 'px'; }
+    el.classList.remove('measuring');
+  }
+}
+addEventListener('resize', () => { if (POV.active) fitPovText(); });
+
+// Lys, laser og konfetti tegnes på et lærred oven på scenen
+function povFxLoop() {
+  const cv = $('povFx');
+  const c = cv.getContext('2d');
+  const tick = (t) => {
+    if (!POV.active) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), W = innerWidth, Hh = innerHeight;
+    if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); }
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, W, Hh);
+    c.globalCompositeOperation = 'lighter';
+    const r = $('povStage').getBoundingClientRect();
+    const roofY = r.top + r.height * 0.07;
+    const sec = (t - POV.t0) / 1000;
+    // dis foran scenen
+    const haze = c.createRadialGradient(r.left + r.width / 2, r.bottom, 10, r.left + r.width / 2, r.bottom, r.width * 0.8);
+    const hz = POV.mode === 'show' ? 0.22 : POV.mode === 'spots' ? 0.08 : 0.12;
+    haze.addColorStop(0, `rgba(140,90,255,${hz})`); haze.addColorStop(1, 'rgba(140,90,255,0)');
+    c.fillStyle = haze; c.fillRect(0, 0, W, Hh);
+    const cone = (x, y, ang, len, spread, rgb, a) => {
+      c.save(); c.translate(x, y); c.rotate(ang);
+      const g = c.createLinearGradient(0, 0, 0, len);
+      g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`);
+      c.fillStyle = g; c.beginPath(); c.moveTo(-3, 0); c.lineTo(-spread, len); c.lineTo(spread, len); c.lineTo(3, 0); c.fill(); c.restore();
+    };
+    if (POV.mode === 'spots') {
+      // to følgespots, der leder efter noget på tæppet
+      for (let i = 0; i < 2; i++) {
+        const tx = r.left + r.width * (0.5 + 0.28 * Math.sin(sec * 1.3 + i * 2.4)), ty = r.top + r.height * 0.5;
+        const sx = i ? r.right + 40 : r.left - 40, sy = r.top - 20;
+        const ang = Math.atan2(tx - sx, ty - sy);
+        cone(sx, sy, -ang, Math.hypot(tx - sx, ty - sy) + 40, 70, '255,245,220', 0.35);
+        c.fillStyle = 'rgba(255,245,220,0.18)'; c.beginPath(); c.ellipse(tx, ty, 80, 60, 0, 0, 7); c.fill();
+      }
+    }
+    if (POV.mode === 'show') {
+      const cols = ['255,79,139', '255,182,39', '123,47,247', '46,196,182', '80,160,255', '255,255,255'];
+      for (let i = 0; i < 6; i++) {
+        const x = r.left + r.width * (0.1 + i * 0.16);
+        const ang = Math.sin(sec * (0.9 + i * 0.13) + i) * 0.7;
+        cone(x, roofY, ang, Hh * 1.1, 90, cols[(i + Math.floor(sec / 2)) % cols.length], 0.33);
+      }
+      if (POV.lasers) {
+        c.lineWidth = 2;
+        for (let i = 0; i < 14; i++) {
+          const a = -Math.PI / 2 + (i - 6.5) * 0.17 + Math.sin(sec * 1.7) * 0.35;
+          const x0 = r.left + r.width / 2, y0 = r.bottom - r.height * 0.1;
+          c.strokeStyle = i % 2 ? 'rgba(60,255,140,0.55)' : 'rgba(255,60,200,0.5)';
+          c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + Math.cos(a) * W, y0 + Math.sin(a) * W); c.stroke();
+        }
+      }
+    }
+    c.globalCompositeOperation = 'source-over';
+    for (let i = POV.conf.length - 1; i >= 0; i--) {
+      const p = POV.conf[i];
+      p.vy += 300 / 60; p.x += p.vx / 60; p.y += p.vy / 60; p.vx *= 0.99; p.rot += p.vr; p.life -= 1 / 60;
+      c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.fillStyle = p.col; c.globalAlpha = Math.max(0, Math.min(1, p.life));
+      c.fillRect(-4, -2.5, 8, 5); c.restore();
+      if (p.life <= 0 || p.y > Hh + 20) POV.conf.splice(i, 1);
+    }
+    c.globalAlpha = 1;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function povConfetti(n) {
+  if (reducedMotion()) n = Math.floor(n / 4);
+  const r = $('povStage').getBoundingClientRect();
+  for (let i = 0; i < n; i++) {
+    const side = i % 2 ? r.left + r.width * 0.12 : r.right - r.width * 0.12;
+    POV.conf.push({ x: side, y: r.top + r.height * 0.15, vx: (side < innerWidth / 2 ? 1 : -1) * (80 + Math.random() * 380), vy: -200 - Math.random() * 380, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3, life: 4 + Math.random() * 2, col: `hsl(${Math.floor(Math.random() * 360)},95%,62%)` });
+  }
+}
+function povFlash() {
+  if (reducedMotion()) return;
+  const f = $('povFlash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+}
+function povCaption(text, cls = '') {
+  const el = $('povCaption');
+  el.className = 'pov-caption'; void el.offsetWidth;
+  if (cls) el.classList.add(cls);
+  el.textContent = text;
+}
+
 function startFinale(d) {
   if (finaleShown) return;
   finaleShown = true;
-  closeModal('qModal');
-  $('finaleTeaser').textContent = d.teaser || 'Aftenens hovednavn er…';
-  $('finaleHeadliner').textContent = d.poster.headliner || '';
-  $('finalePoster').innerHTML = posterHtml(d.poster, true);
-  $('finaleMsg').textContent = d.message || '';
-  $('finale').classList.remove('hidden');
+  try { tabStore.setItem(`festival:povseen:${G.code}`, '1'); } catch {}
+  document.querySelectorAll('.modal:not(.hidden)').forEach((m) => closeModal(m.id));
+  const P = d.poster || G.poster || {};
+  const run = ++POV.run;
+  const alive = () => POV.run === run;
+
+  let li = 0;
+  $('povName').innerHTML = String(P.name || '').split(' ').map((word) =>
+    `<span class="w">${[...word].map((ch) => `<i style="animation-delay:${(li++ * 0.06).toFixed(2)}s">${esc(ch)}</i>`).join('')}</span>`).join(' ');
+  $('povMeta').innerHTML = [P.date && `📅 <b>${esc(P.date)}</b>`, P.place && `📍 <b>${esc(P.place)}</b>`].filter(Boolean).join(' &nbsp;·&nbsp; ')
+    + (P.tagline ? `<div style="font-weight:500;opacity:.85;font-size:.85em;margin-top:.3em">${esc(P.tagline)}</div>` : '');
+  $('povTeaser').textContent = d.teaser || 'Aftenens hemmelige hovednavn er…';
+  $('povHead').textContent = P.headliner || '';
+  $('povLineup').innerHTML = (P.lineup || []).map((ch) => `<span>${esc(Array.isArray(ch) ? ch.join('') : ch)}</span>`).join('');
+  buildCrowd();
+  $('pov').className = 'pov';
+  $('povCurtain').className = 'pov-curtain';
+  $('povCurtain').style.display = '';
+  document.querySelectorAll('#povScreen > div, #povLineup span').forEach((e) => e.classList.remove('on'));
+  $('povActions').classList.remove('on');
+  $('povSkip').hidden = false;
+  fitPovText();
+  POV.active = true; POV.mode = 'house'; POV.lasers = false; POV.conf = []; POV.t0 = performance.now();
+  povFxLoop();
   updateHud();
-  drumroll().then(() => { startMusic(); burst(25, 5, 150); });
-  $('finaleClose').onclick = () => { $('finale').classList.add('hidden'); burst(25, 5, 80); };
+
+  const showAll = () => {
+    $('pov').classList.remove('dim', 'pulse');
+    $('pov').classList.add('cheer');
+    $('povCurtain').style.display = 'none';
+    document.querySelectorAll('#povScreen > div, #povLineup span').forEach((e) => e.classList.add('on'));
+    POV.mode = 'show'; POV.lasers = true;
+    povCaption('');
+    $('povMsg').textContent = d.message || '';
+    $('povActions').classList.add('on');
+    $('povSkip').hidden = true;
+    murmurStop(0.5);
+    startMusic();
+  };
+  $('povSkip').onclick = () => { POV.run++; showAll(); };
+  $('povClose').onclick = () => { $('pov').classList.add('hidden'); POV.active = false; burst(25, 5, 80); };
+  $('povPoster').onclick = () => { renderPoster(); openModal('posterModal'); };
+
+  (async () => {
+    murmurStart();
+    povCaption('Hele holdet er samlet foran scenen…');
+    await sleep(2800); if (!alive()) return;
+    $('pov').classList.add('dim', 'pulse');
+    POV.mode = 'spots';
+    povCaption('Lyset dæmpes…');
+    await drumroll(); if (!alive()) return;
+    for (const n of ['3', '2', '1']) {
+      povCaption(n, 'count'); boom(0.3);
+      await sleep(850); if (!alive()) return;
+    }
+    // Scenetæppet falder!
+    povCaption('');
+    $('povCurtain').classList.add('drop');
+    setTimeout(() => { if (alive()) $('povCurtain').style.display = 'none'; }, 1150);
+    whoosh();
+    setTimeout(() => { if (alive()) { boom(0.9); povFlash(); cheer(); } }, 380);
+    murmurStop(0.4);
+    await sleep(500); if (!alive()) return;
+    $('pov').classList.remove('dim', 'pulse');
+    POV.mode = 'show';
+    povConfetti(160);
+    await sleep(500); if (!alive()) return;
+    $('povKicker').classList.add('on');
+    await sleep(500); if (!alive()) return;
+    $('povName').classList.add('on');
+    await sleep(1800); if (!alive()) return;
+    $('povMeta').classList.add('on');
+    await sleep(2000); if (!alive()) return;
+    $('povTeaser').classList.add('on');
+    drumrollShort();
+    await sleep(1800); if (!alive()) return;
+    $('povHead').classList.add('on');
+    boom(1); povFlash(); cheer(1.3);
+    POV.lasers = true;
+    $('pov').classList.add('cheer');
+    povConfetti(220);
+    startMusic();
+    burst(25, 5, 150);
+    for (const [i, el] of [...document.querySelectorAll('#povLineup span')].entries()) {
+      await sleep(i ? 260 : 1400); if (!alive()) return;
+      el.classList.add('on');
+    }
+    await sleep(900); if (!alive()) return;
+    $('povMsg').textContent = d.message || '';
+    $('povActions').classList.add('on');
+    $('povSkip').hidden = true;
+  })();
 }
 
 // ====================================================================
@@ -2056,6 +2384,58 @@ function noiseHit(dur, vol) {
   const s = AC.createBufferSource(), g = AC.createGain(); g.gain.value = vol;
   s.buffer = b; s.connect(g).connect(AC.destination); s.start();
 }
+// ---- lyde til finalen ----
+function noiseBuffer(dur) {
+  const b = AC.createBuffer(1, Math.floor(AC.sampleRate * dur), AC.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return b;
+}
+let murmurNode = null;
+function murmurStart() { // publikum der summer
+  if (!AC || murmurNode) return;
+  const s = AC.createBufferSource(); s.buffer = noiseBuffer(2); s.loop = true;
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 480; f.Q.value = 0.7;
+  const g = AC.createGain(); g.gain.setValueAtTime(0, AC.currentTime); g.gain.linearRampToValueAtTime(0.06, AC.currentTime + 1.5);
+  s.connect(f).connect(g).connect(AC.destination); s.start();
+  murmurNode = { s, g };
+}
+function murmurStop(fade = 1) {
+  if (!AC || !murmurNode) return;
+  const { s, g } = murmurNode; murmurNode = null;
+  g.gain.cancelScheduledValues(AC.currentTime); g.gain.setValueAtTime(g.gain.value, AC.currentTime);
+  g.gain.linearRampToValueAtTime(0, AC.currentTime + fade); s.stop(AC.currentTime + fade + 0.05);
+}
+function whoosh() { // tæppet suser ned
+  if (!AC) return;
+  const s = AC.createBufferSource(); s.buffer = noiseBuffer(1);
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
+  f.frequency.setValueAtTime(300, AC.currentTime); f.frequency.exponentialRampToValueAtTime(3500, AC.currentTime + 0.7);
+  const g = AC.createGain(); g.gain.setValueAtTime(0.001, AC.currentTime); g.gain.exponentialRampToValueAtTime(0.3, AC.currentTime + 0.45); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.95);
+  s.connect(f).connect(g).connect(AC.destination); s.start();
+}
+function boom(vol = 1) { // dyb bas
+  tone(48, 1.1, 'sine', 0.55 * vol); tone(96, 0.35, 'triangle', 0.15 * vol); noiseHit(0.25, 0.12 * vol);
+}
+function cheer(len = 1) { // publikum jubler
+  if (!AC) return;
+  const dur = 4.5 * len;
+  const s = AC.createBufferSource(); s.buffer = noiseBuffer(dur);
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 0.6;
+  const g = AC.createGain(); g.gain.setValueAtTime(0.001, AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.16, AC.currentTime + 0.5); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+  s.connect(f).connect(g).connect(AC.destination); s.start();
+  for (let i = 0; i < 6; i++) { // enkelte "wuhuu"-råb
+    const o = AC.createOscillator(), og = AC.createGain(), t0 = AC.currentTime + 0.2 + Math.random() * 1.5;
+    o.type = 'sine'; o.frequency.setValueAtTime(500 + Math.random() * 300, t0); o.frequency.exponentialRampToValueAtTime(1000 + Math.random() * 400, t0 + 0.4);
+    og.gain.setValueAtTime(0.001, t0); og.gain.exponentialRampToValueAtTime(0.025, t0 + 0.1); og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
+    o.connect(og).connect(AC.destination); o.start(t0); o.stop(t0 + 0.65);
+  }
+}
+async function drumrollShort() {
+  if (!AC) return;
+  for (let i = 0; i < 14; i++) { noiseHit(0.04, 0.03 + i * 0.004); await sleep(85); }
+}
+
 let musicOn = false;
 function startMusic() {
   if (!AC || musicOn) return;

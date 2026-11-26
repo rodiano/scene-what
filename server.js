@@ -84,14 +84,7 @@ function createSession() {
     dirty: false,
     revealOrder: null,
   };
-  const nameLetters = [...FESTIVAL.festivalName].map((c, i) => i).filter((i) => FESTIVAL.festivalName[i] !== ' ');
-  s.revealOrder = {
-    pieces: seededShuffle(
-      [...FESTIVAL.lineup.map((_, i) => `band:${i}`), 'date', 'place', 'tagline'],
-      id,
-    ),
-    letters: seededShuffle(nameLetters, id + 'x'),
-  };
+  s.revealOrder = lineupRevealOrder(id);
   sessions.set(id, s);
   return s;
 }
@@ -141,30 +134,45 @@ function teamProgress(s) {
   return { solved, required, ratio: Math.min(1, solved / required) };
 }
 
-// Plakaten – kun de afslørede dele sendes til browseren
+// Rækkefølgen kunstnernes bogstaver afsløres i (ens for hele holdet):
+// først forbogstavet i hvert navn, derefter resten i tilfældig orden.
+function lineupRevealOrder(seed) {
+  const firsts = [], rest = [];
+  FESTIVAL.lineup.forEach((name, b) => {
+    let first = true;
+    [...name].forEach((c, i) => {
+      if (!/[\p{L}\p{N}]/u.test(c)) return; // mellemrum og tegn vises altid
+      (first ? firsts : rest).push(`${b}:${i}`);
+      first = false;
+    });
+  });
+  return [...seededShuffle(firsts, seed), ...seededShuffle(rest, seed + 'x')];
+}
+
+// Plakaten – kun de afslørede dele sendes til browseren.
+// Under spillet afsløres KUN kunstnerne, bogstav for bogstav (højst 80 %).
+// Festivalnavn, dato, sted og hovednavn sendes først, når finalen er i gang.
 function posterView(s) {
   const prog = teamProgress(s);
   const full = !!s.finale;
-  // Navnet afsløres lidt langsommere end resten, så det sidste bogstav først kommer til sidst
-  const piecesShown = full ? Infinity : Math.floor(prog.ratio * s.revealOrder.pieces.length);
-  const lettersShown = full ? Infinity : Math.floor(prog.ratio * 0.85 * s.revealOrder.letters.length);
-  const shownPieces = new Set(s.revealOrder.pieces.slice(0, piecesShown));
-  const shownLetters = new Set(s.revealOrder.letters.slice(0, lettersShown));
-  const name = [...FESTIVAL.festivalName].map((c, i) => (c === ' ' ? ' ' : shownLetters.has(i) ? c : null));
-  const total = s.revealOrder.pieces.length + s.revealOrder.letters.length + 1;
-  const revealed = full ? total : shownPieces.size + shownLetters.size;
+  const order = s.revealOrder;
+  const shown = full ? order.length : Math.floor(prog.ratio * 0.8 * order.length);
+  const set = new Set(order.slice(0, shown));
   return {
-    name,
-    tagline: shownPieces.has('tagline') ? FESTIVAL.tagline : null,
-    date: shownPieces.has('date') ? FESTIVAL.date : null,
-    place: shownPieces.has('place') ? FESTIVAL.place : null,
-    lineup: FESTIVAL.lineup.map((b, i) => (shownPieces.has(`band:${i}`) ? b : null)),
+    final: full,
+    lineup: FESTIVAL.lineup.map((name, b) =>
+      [...name].map((c, i) => (!/[\p{L}\p{N}]/u.test(c) || full || set.has(`${b}:${i}`) ? c : null))),
+    name: full ? FESTIVAL.festivalName : null,
+    tagline: full ? FESTIVAL.tagline : null,
+    date: full ? FESTIVAL.date : null,
+    place: full ? FESTIVAL.place : null,
     headliner: full ? FESTIVAL.headliner : null,
-    revealed,
-    total,
+    revealed: shown,
+    total: order.length,
     progress: prog,
   };
 }
+
 
 function send(res, event, data) {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
