@@ -47,7 +47,26 @@ const credsKey = (code) => `festival:${code}`;
 const loadCreds = (code) => { try { return JSON.parse(tabStore.getItem(credsKey(code))); } catch { return null; } };
 const saveCreds = (code, c) => { try { tabStore.setItem(credsKey(code), JSON.stringify(c)); tabStore.setItem('festival:last', code); } catch {} };
 
-function shareLink(code) { return `${location.origin}/?s=${code}`; }
+// Link der åbner spillet direkte med koden (GitHub Pages bruger #KODE, Node-serveren ?s=KODE).
+// I claude.ai-artifacten findes der ikke et delbart link (window.__NO_LINK__).
+function shareLink(code) {
+  if (window.__NO_LINK__) return null;
+  if (window.__PAGES__) return `${location.origin}${location.pathname}#${code}`;
+  return `${location.origin}/?s=${code}`;
+}
+// QR-kode som andre i nærheden kan scanne for at komme direkte ind i spillet
+function renderQr(el, code) {
+  const url = shareLink(code);
+  if (!el) return;
+  if (!url || typeof qrcode === 'undefined') { el.hidden = true; return; }
+  try {
+    const q = qrcode(0, 'M');
+    q.addData(url);
+    q.make();
+    el.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }) + '<small>Scan for at være med</small>';
+    el.hidden = false;
+  } catch { el.hidden = true; }
+}
 async function share(code) {
   const url = shareLink(code);
   const text = `Kom med til festivalen! 🎪 Brug koden ${code}`;
@@ -84,6 +103,11 @@ const mySolved = () => new Set(G.players.get(G.pid)?.solved || []);
 const params = new URLSearchParams(location.search);
 const urlCode = (params.get('s') || location.pathname.split('/s/')[1] || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 if (urlCode) $('codeInput').value = urlCode;
+// Kommer man fra et delt link eller en QR-kode, går man direkte til karaktervalg
+if (urlCode && !loadCreds(urlCode)) {
+  $('lobbyError').textContent = '⏳ Forbinder til spillet…';
+  gotoCharacter(urlCode).catch((e) => { showScreen('lobby'); $('lobbyError').textContent = e.message; });
+}
 
 (function checkResume() {
   const code = urlCode || (() => { try { return tabStore.getItem('festival:last'); } catch { return null; } })();
@@ -111,6 +135,7 @@ $('joinForm').onsubmit = async (e) => {
   $('lobbyError').textContent = '';
   const code = $('codeInput').value.trim().toUpperCase();
   if (code.length < 4) { $('lobbyError').textContent = 'Skriv koden fra din medspiller'; return; }
+  $('lobbyError').textContent = '⏳ Forbinder til spillet…';
   try {
     const c = loadCreds(code);
     if (c) {
@@ -128,9 +153,11 @@ $('joinForm').onsubmit = async (e) => {
 // ====================================================================
 async function gotoCharacter(code) {
   const info = await api(`/api/s/${code}`);
+  $('lobbyError').textContent = '';
   G.code = code;
   $('charCode').textContent = code;
   $('charShare').onclick = () => share(code);
+  renderQr($('charQr'), code);
   if (info.players >= info.maxPlayers) throw new Error(`Spillet er fuldt (maks ${info.maxPlayers} spillere).`);
   $('charInfo').textContent = info.players === 0
     ? `Du er den første! Del koden, så op til ${info.maxPlayers - 1} andre kan spille med.`
@@ -332,10 +359,10 @@ function updateStageBanner() {
   else el.innerHTML = `🎶 Du er ved scenen! Koncerten starter, når hele holdet er her.<br>Venter på: ${waiting.map((p) => `${esc(p.avatar)} ${esc(p.name)} <small>(${esc(zoneAt(p.x, p.y))})</small>`).join(', ')}<br><small>Tjek 🆘 og 💬 – måske kan du hjælpe dem!</small>`;
 }
 
-$('codeChip').onclick = () => share(G.code);
+$('codeChip').onclick = () => { renderTeam(); renderQr($('teamQr'), G.code); openModal('teamModal'); };
 $('teamShare').onclick = () => share(G.code);
 $('posterBtn').onclick = () => { renderPoster(); openModal('posterModal'); };
-$('teamBtn').onclick = () => { renderTeam(); openModal('teamModal'); };
+$('teamBtn').onclick = () => { renderTeam(); renderQr($('teamQr'), G.code); openModal('teamModal'); };
 $('helpBtn').onclick = () => { renderHelps(); openModal('helpModal'); };
 $('chatBtn').onclick = () => {
   G.unreadChat = 0; updateHud(); renderChat(); openModal('chatModal');
@@ -590,11 +617,11 @@ async function skip() {
 // ====================================================================
 const keys = new Set();
 addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { document.querySelectorAll('.modal:not(.hidden)').forEach((m) => closeModal(m.id)); return; }
   if (e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); e.preventDefault(); }
   if ((k === 'e' || k === ' ' || k === 'enter') && !anyModalOpen()) { interactNearest(); e.preventDefault(); }
-  if (k === 'escape') document.querySelectorAll('.modal:not(.hidden)').forEach((m) => closeModal(m.id));
 });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());

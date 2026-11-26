@@ -1,4 +1,5 @@
 <title>Festivalspillet</title>
+<script>window.__NO_LINK__ = true;</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* VOICE occasion: et familiespil
@@ -233,6 +234,12 @@ label input { margin-top: 6px; font-weight: 400; }
 @keyframes fadeIn { to { opacity: 1; } }
 @keyframes reveal { 0% { opacity: 0; transform: scale(0.2) rotate(-8deg); filter: blur(12px); } 100% { opacity: 1; transform: none; filter: none; } }
 
+/* QR-kode til hurtig deltagelse */
+.qr { width: min(220px, 60vw); margin: 4px auto 10px; background: #fff; border-radius: 14px; padding: 8px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
+.qr svg { display: block; width: 100%; height: auto; }
+.qr small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.qr.small { width: min(150px, 45vw); margin-top: 10px; }
+
 .net-text { background: #f3edff; border-radius: 12px; padding: 8px 12px; font-size: 14px; margin: 0 0 12px; }
 
 </style>
@@ -264,6 +271,7 @@ label input { margin-top: 6px; font-weight: 400; }
   <section id="character" class="screen">
     <div class="card">
       <div class="codebar">Spil-kode: <b id="charCode"></b> <button id="charShare" class="btn small">📋 Kopiér</button></div>
+      <div id="charQr" class="qr small" hidden></div>
       <h2>Lav din festivalgænger</h2>
       <label>Dit navn
         <input id="nameInput" maxlength="16" placeholder="Fx Maja" autocomplete="nickname" />
@@ -337,6 +345,7 @@ label input { margin-top: 6px; font-weight: 400; }
       <p id="netText" class="net-text"></p>
       <div id="teamList"></div>
       <div class="share-box">
+        <div id="teamQr" class="qr" hidden></div>
         <p>Inviter flere med koden <b class="code-big" id="teamCode"></b></p>
         <button id="teamShare" class="btn">📋 Kopiér kode</button>
       </div>
@@ -533,6 +542,7 @@ const ENGINE = (() => {
   const roomP = (async () => {
     try { roomApi = window.claude?.use ? await window.claude.use('room') : null; } catch { roomApi = null; }
     // Uden for claude.ai (fx GitHub Pages): brug peer-to-peer via PeerJS, hvis det er med i bygget
+    if (!roomApi && typeof MULTI_ROOM !== 'undefined' && MULTI_ROOM) roomApi = MULTI_ROOM;
     if (!roomApi && typeof PEER_ROOM !== 'undefined' && PEER_ROOM) roomApi = PEER_ROOM;
     return roomApi;
   })();
@@ -924,6 +934,26 @@ const credsKey = (code) => `festival:${code}`;
 const loadCreds = (code) => { try { return JSON.parse(tabStore.getItem(credsKey(code))); } catch { return null; } };
 const saveCreds = (code, c) => { try { tabStore.setItem(credsKey(code), JSON.stringify(c)); tabStore.setItem('festival:last', code); } catch {} };
 
+// Link der åbner spillet direkte med koden (GitHub Pages bruger #KODE, Node-serveren ?s=KODE).
+// I claude.ai-artifacten findes der ikke et delbart link (window.__NO_LINK__).
+function shareLink(code) {
+  if (window.__NO_LINK__) return null;
+  if (window.__PAGES__) return `${location.origin}${location.pathname}#${code}`;
+  return `${location.origin}/?s=${code}`;
+}
+// QR-kode som andre i nærheden kan scanne for at komme direkte ind i spillet
+function renderQr(el, code) {
+  const url = shareLink(code);
+  if (!el) return;
+  if (!url || typeof qrcode === 'undefined') { el.hidden = true; return; }
+  try {
+    const q = qrcode(0, 'M');
+    q.addData(url);
+    q.make();
+    el.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }) + '<small>Scan for at være med</small>';
+    el.hidden = false;
+  } catch { el.hidden = true; }
+}
 async function share(code) {
   if (window.__PAGES__) {
     const url = location.origin + location.pathname + '#' + code;
@@ -962,6 +992,11 @@ const mySolved = () => new Set(G.players.get(G.pid)?.solved || []);
 const params = new URLSearchParams(location.search);
 const urlCode = (location.hash.slice(1) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 if (urlCode) $('codeInput').value = urlCode;
+// Kommer man fra et delt link eller en QR-kode, går man direkte til karaktervalg
+if (urlCode && !loadCreds(urlCode)) {
+  $('lobbyError').textContent = '⏳ Forbinder til spillet…';
+  gotoCharacter(urlCode).catch((e) => { showScreen('lobby'); $('lobbyError').textContent = e.message; });
+}
 
 (function checkResume() {
   const code = urlCode || (() => { try { return tabStore.getItem('festival:last'); } catch { return null; } })();
@@ -989,6 +1024,7 @@ $('joinForm').onsubmit = async (e) => {
   $('lobbyError').textContent = '';
   const code = $('codeInput').value.trim().toUpperCase();
   if (code.length < 4) { $('lobbyError').textContent = 'Skriv koden fra din medspiller'; return; }
+  $('lobbyError').textContent = '⏳ Forbinder til spillet…';
   try {
     const c = loadCreds(code);
     if (c) {
@@ -1006,9 +1042,11 @@ $('joinForm').onsubmit = async (e) => {
 // ====================================================================
 async function gotoCharacter(code) {
   const info = await api(`/api/s/${code}`);
+  $('lobbyError').textContent = '';
   G.code = code;
   $('charCode').textContent = code;
   $('charShare').onclick = () => share(code);
+  renderQr($('charQr'), code);
   if (info.players >= info.maxPlayers) throw new Error(`Spillet er fuldt (maks ${info.maxPlayers} spillere).`);
   $('charInfo').textContent = info.players === 0
     ? `Du er den første! Del koden, så op til ${info.maxPlayers - 1} andre kan spille med.`
@@ -1210,10 +1248,10 @@ function updateStageBanner() {
   else el.innerHTML = `🎶 Du er ved scenen! Koncerten starter, når hele holdet er her.<br>Venter på: ${waiting.map((p) => `${esc(p.avatar)} ${esc(p.name)} <small>(${esc(zoneAt(p.x, p.y))})</small>`).join(', ')}<br><small>Tjek 🆘 og 💬 – måske kan du hjælpe dem!</small>`;
 }
 
-$('codeChip').onclick = () => share(G.code);
+$('codeChip').onclick = () => { renderTeam(); renderQr($('teamQr'), G.code); openModal('teamModal'); };
 $('teamShare').onclick = () => share(G.code);
 $('posterBtn').onclick = () => { renderPoster(); openModal('posterModal'); };
-$('teamBtn').onclick = () => { renderTeam(); openModal('teamModal'); };
+$('teamBtn').onclick = () => { renderTeam(); renderQr($('teamQr'), G.code); openModal('teamModal'); };
 $('helpBtn').onclick = () => { renderHelps(); openModal('helpModal'); };
 $('chatBtn').onclick = () => {
   G.unreadChat = 0; updateHud(); renderChat(); openModal('chatModal');
@@ -1468,11 +1506,11 @@ async function skip() {
 // ====================================================================
 const keys = new Set();
 addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { document.querySelectorAll('.modal:not(.hidden)').forEach((m) => closeModal(m.id)); return; }
   if (e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) { keys.add(k); e.preventDefault(); }
   if ((k === 'e' || k === ' ' || k === 'enter') && !anyModalOpen()) { interactNearest(); e.preventDefault(); }
-  if (k === 'escape') document.querySelectorAll('.modal:not(.hidden)').forEach((m) => closeModal(m.id));
 });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());

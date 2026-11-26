@@ -74,8 +74,16 @@ Kør `npm run check` efter ændringer i kortet. Den tjekker, at alle startsteder
 
 ## GitHub Pages (uden server)
 
-Spillet kan også køre som en statisk side på GitHub Pages. Her forbindes spillernes browsere
-direkte til hinanden via WebRTC med [PeerJS](https://peerjs.com/), så der er ingen server at drive.
+Spillet kan også køre som en statisk side på GitHub Pages uden egen server. Spillerne forbindes
+ad to veje på én gang, og man ser hinanden, så længe mindst én af dem virker:
+
+1. **MQTT-relay:** Tilstanden sendes gennem en offentlig MQTT-broker over WebSocket
+   (`wss://broker.hivemq.com:8884/mqtt`). Det går gennem de fleste firewalls.
+2. **Peer-to-peer:** Browserne forbindes direkte via WebRTC med [PeerJS](https://peerjs.com/).
+
+**QR-kode:** Tryk på koden øverst til venstre eller på 👥 for at vise en QR-kode, som andre i nærheden
+kan scanne. Den åbner spillet direkte på karaktervalget med koden udfyldt. QR-koden vises også,
+mens man laver sin figur. Delte links virker på samme måde.
 
 - Workflowet `.github/workflows/pages.yml` bygger og udgiver siden ved hvert push til `main`.
 - Første gang: Gå til **Settings → Pages** i repoet og vælg **Source: GitHub Actions**.
@@ -83,25 +91,26 @@ direkte til hinanden via WebRTC med [PeerJS](https://peerjs.com/), så der er in
 - Del-knappen kopierer et link med koden, fx `https://<bruger>.github.io/scene-what/#K7QM2X`.
 - Byg lokalt med `python3 artifact/build.py --pages _site`, og åbn `_site/index.html` via en lokal webserver.
 
-Sådan virker det: Spil-koden bestemmer et fast id. Den første spiller bliver "hub" og videresender
+Sådan virker peer-to-peer-delen: Spil-koden bestemmer et fast id. Den første spiller bliver "hub" og videresender
 alles tilstand til de andre. Lukker hubben fanen, overtager en af de andre automatisk efter ca. 10 sekunder.
 Hver spiller husker sit eget fremskridt i browserfanen. En genindlæsning fortsætter som samme spiller,
 mens en ny fane eller en anden enhed med samme kode bliver en ny spiller.
 
 Prikken ved 👥 viser forbindelsen: 🟢 forbundet, 🟡 forbinder, ⚪ spiller alene. Tryk på 👥 for at se
-detaljer, herunder seneste fejl, hvis forbindelsen ikke lykkes.
+detaljer, fx `MQTT ✓, P2P ✗ (network)`.
 
 Begrænsninger i version 1:
 - **Spørgsmål og svar ligger i sidens kildekode.** Brug Node-versionen, hvis svarene skal være skjult.
-- Forbindelsen etableres via PeerJS' gratis offentlige server (`0.peerjs.com`). Man kan bruge en egen
-  server med `?peerhost=min.server.dk&peerport=443&peerpath=/`.
-- Der er ingen TURN-server, så enkelte firma- og skolenetværk kan forhindre forbindelsen.
-  Spillet kører så videre for én spiller.
+- Begge veje bruger gratis offentlige tjenester (HiveMQ's offentlige MQTT-broker og PeerJS' server).
+  De er åbne for alle, så spillets tilstand kan i princippet læses af andre, der kender koden.
+  Man kan bruge egne servere med `?mqtt=wss://min.broker.dk/mqtt` og
+  `?peerhost=min.server.dk&peerport=443&peerpath=/`. `?mqtt=off` slår MQTT fra.
 - Holdet ser kun de spillere, der har siden åben lige nu.
 
-Filer: `artifact/peer-room.js` (peer-to-peer), `artifact/engine.js` (spillogik i browseren),
-`artifact/vendor/peerjs.min.js` (PeerJS 1.5.4, MIT-licens) og `artifact/build.py` (bygger både
-artifact- og Pages-versionen).
+Filer: `artifact/mqtt-room.js` (MQTT og samling af de to veje), `artifact/peer-room.js`
+(peer-to-peer), `artifact/engine.js` (spillogik i browseren) og `artifact/build.py` (bygger både
+artifact- og Pages-versionen). Tredjepartskode i `artifact/vendor/` (PeerJS 1.5.4 og MQTT.js 5.10.1)
+og `public/vendor/qrcode.js` (qrcode-generator 1.4.4) er alle under MIT-licens.
 
 ## Teknik
 

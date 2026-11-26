@@ -13,7 +13,7 @@ game = sub(r"async function api\(path, body\) \{.*?\n\}\n", "const api = (path, 
 game = sub("new EventSource(", "new ENGINE.FakeEventSource(", game)
 game = sub("EventSource.CLOSED", "2", game)
 game = sub(r"history\.replaceState\([^;]*;", "", game, regex=True)
-game = sub(r"function shareLink\(code\).*?\nasync function share\(code\) \{.*?\n\}\n", """async function share(code) {
+game = sub(r"async function share\(code\) \{.*?\n\}\n", """async function share(code) {
   if (window.__PAGES__) {
     const url = location.origin + location.pathname + '#' + code;
     if (navigator.share) { try { await navigator.share({ title: 'Festivalspillet', text: `Kom med til festivalen! 🎪 Kode: ${code}`, url }); return; } catch {} }
@@ -30,7 +30,7 @@ fest = json.loads((R/'config/festival.json').read_text()); fest.pop('_kommentar'
 qs = json.loads((R/'config/questions.json').read_text())['questions']
 engine = (R/'artifact/engine.js').read_text()
 html = (R/'public/index.html').read_text()
-body = html.split('<body>')[1].split('<script type="module"')[0]
+body = html.split('<body>')[1].split('<script src="/vendor/qrcode.js"')[0]
 body = body.replace('<button id="charShare" class="btn small">🔗 Del</button>', '<button id="charShare" class="btn small">📋 Kopiér</button>')
 body = body.replace('<button id="teamShare" class="btn">🔗 Del link</button>', '<button id="teamShare" class="btn">📋 Kopiér kode</button>')
 body = body.replace('<p id="lobbyError" class="error"></p>', '<p id="lobbyError" class="error"></p>\n      <p class="muted">Demo-version: dine medspillere skal åbne denne samme side og skrive koden.</p>')
@@ -69,6 +69,7 @@ game += '''
 '''
 js_json = lambda o: json.dumps(o, ensure_ascii=False).replace('<', '\\u003c')
 out = f"""<title>Festivalspillet</title>
+<script>window.__NO_LINK__ = true;</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* VOICE occasion: et familiespil
@@ -94,14 +95,17 @@ const QUESTIONS_DATA = {js_json(qs)};
 if len(sys.argv) >= 3 and sys.argv[1] == '--pages':
     # Fuldt HTML-dokument til GitHub Pages med peer-to-peer-multiplayer (PeerJS)
     site = pathlib.Path(sys.argv[2]).resolve(); site.mkdir(parents=True, exist_ok=True)
-    peer = (R/'artifact/peer-room.js').read_text()
+    peer = (R/'artifact/peer-room.js').read_text() + '\n' + (R/'artifact/mqtt-room.js').read_text()
+    qrlib = (R/'public/vendor/qrcode.js').read_text()
     script = f"""<script>window.__PAGES__ = true;</script>
 <script src="peerjs.min.js"></script>
+<script src="mqtt.min.js"></script>
 <script>
 {{
 const FESTIVAL_DATA = {js_json(fest)};
 const QUESTIONS_DATA = {js_json(qs)};
 {world}
+{qrlib}
 {peer}
 {engine}
 {game}
@@ -119,6 +123,7 @@ const QUESTIONS_DATA = {js_json(qs)};
     doc = head + f"<style>\n{css}\n</style>\n</head>\n<body>\n{body}\n{script}\n</body>\n</html>\n"
     (site/'index.html').write_text(doc)
     shutil.copy(R/'artifact/vendor/peerjs.min.js', site/'peerjs.min.js')
+    shutil.copy(R/'artifact/vendor/mqtt.min.js', site/'mqtt.min.js')
     (site/'.nojekyll').write_text('')
     print(site/'index.html', len(doc))
 else:

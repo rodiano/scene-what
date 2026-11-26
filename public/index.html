@@ -35,6 +35,7 @@
   <section id="character" class="screen">
     <div class="card">
       <div class="codebar">Spil-kode: <b id="charCode"></b> <button id="charShare" class="btn small">🔗 Del</button></div>
+      <div id="charQr" class="qr small" hidden></div>
       <h2>Lav din festivalgænger</h2>
       <label>Dit navn
         <input id="nameInput" maxlength="16" placeholder="Fx Maja" autocomplete="nickname" />
@@ -107,6 +108,7 @@
       <h3>👥 Dit hold</h3>
       <div id="teamList"></div>
       <div class="share-box">
+        <div id="teamQr" class="qr" hidden></div>
         <p>Inviter flere med koden <b class="code-big" id="teamCode"></b></p>
         <button id="teamShare" class="btn">🔗 Del link</button>
       </div>
@@ -137,6 +139,7 @@
     </div>
   </div>
 
+  <script src="/vendor/qrcode.js"></script>
   <script type="module" src="/game.js"></script>
 </body>
 </html>

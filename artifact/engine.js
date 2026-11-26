@@ -23,6 +23,7 @@ const ENGINE = (() => {
   const roomP = (async () => {
     try { roomApi = window.claude?.use ? await window.claude.use('room') : null; } catch { roomApi = null; }
     // Uden for claude.ai (fx GitHub Pages): brug peer-to-peer via PeerJS, hvis det er med i bygget
+    if (!roomApi && typeof MULTI_ROOM !== 'undefined' && MULTI_ROOM) roomApi = MULTI_ROOM;
     if (!roomApi && typeof PEER_ROOM !== 'undefined' && PEER_ROOM) roomApi = PEER_ROOM;
     return roomApi;
   })();
