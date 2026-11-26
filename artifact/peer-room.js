@@ -32,6 +32,7 @@ const PEER_ROOM = (() => {
       let hubLastSeen = 0;             // kun hos klienter
       const HEARTBEAT_MS = 2000, TIMEOUT_MS = 7000;
       let peer = null, isHub = false, toHub = null, left = false, resolved = false;
+      let lastError = '';
 
       let fireQueued = false;
       const snap = () => [
@@ -81,6 +82,11 @@ const PEER_ROOM = (() => {
         peers: snap,
         onPeers(h) { handlers.add(h); fire(); return () => handlers.delete(h); },
         connected: () => !!peer && (isHub || !!toHub?.open),
+        status: () => ({
+          state: peer && (isHub || toHub?.open) ? 'connected' : 'connecting',
+          role: isHub ? 'hub' : 'klient',
+          error: lastError,
+        }),
         async leave() { left = true; handlers.clear(); try { peer?.destroy(); } catch {} },
       };
       const done = () => { if (!resolved) { resolved = true; resolve(api); } };
@@ -113,7 +119,8 @@ const PEER_ROOM = (() => {
           fire(); done();
         });
         p.on('error', (e) => {
-          if (opened) return;
+          if (opened) { lastError = e.type || String(e); return; }
+          if (e.type !== 'unavailable-id') lastError = e.type || String(e);
           try { p.destroy(); } catch {}
           if (e.type === 'unavailable-id') becomeClient(); // en anden er allerede hub
           else retry();
@@ -125,7 +132,8 @@ const PEER_ROOM = (() => {
         if (left) return;
         const p = new Peer(opts);
         let failed = false;
-        const fail = () => {
+        const fail = (e) => {
+          if (e && e.type) lastError = e.type; else if (!failed && !toHub) lastError = 'timeout';
           if (failed || left) return;
           failed = true; toHub = null; peer = null; others = new Map(); fire();
           try { p.destroy(); } catch {}
@@ -136,7 +144,7 @@ const PEER_ROOM = (() => {
           const c = p.connect(hubId, { reliable: true });
           const t = setTimeout(() => { if (!c.open) fail(); }, 9000);
           c.on('open', () => {
-            clearTimeout(t); toHub = c; hubLastSeen = Date.now(); c._fail = fail;
+            clearTimeout(t); toHub = c; hubLastSeen = Date.now(); c._fail = fail; lastError = '';
             try { c.send({ t: 'p', p: mine }); } catch {}
             done();
           });

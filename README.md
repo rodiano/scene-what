@@ -85,7 +85,11 @@ direkte til hinanden via WebRTC med [PeerJS](https://peerjs.com/), så der er in
 
 Sådan virker det: Spil-koden bestemmer et fast id. Den første spiller bliver "hub" og videresender
 alles tilstand til de andre. Lukker hubben fanen, overtager en af de andre automatisk efter ca. 10 sekunder.
-Hver spiller husker sit eget fremskridt i browseren.
+Hver spiller husker sit eget fremskridt i browserfanen. En genindlæsning fortsætter som samme spiller,
+mens en ny fane eller en anden enhed med samme kode bliver en ny spiller.
+
+Prikken ved 👥 viser forbindelsen: 🟢 forbundet, 🟡 forbinder, ⚪ spiller alene. Tryk på 👥 for at se
+detaljer, herunder seneste fejl, hvis forbindelsen ikke lykkes.
 
 Begrænsninger i version 1:
 - **Spørgsmål og svar ligger i sidens kildekode.** Brug Node-versionen, hvis svarene skal være skjult.

@@ -40,9 +40,12 @@ function toast(html, ms = 3500) {
   return el;
 }
 
+// Spilleridentitet gemmes pr. fane (sessionStorage): en genindlæsning fortsætter som samme
+// spiller, mens en ny fane eller en anden enhed med samme kode bliver en ny spiller.
+const tabStore = (() => { try { return window.sessionStorage; } catch { return null; } })();
 const credsKey = (code) => `festival:${code}`;
-const loadCreds = (code) => { try { return JSON.parse(localStorage.getItem(credsKey(code))); } catch { return null; } };
-const saveCreds = (code, c) => { try { localStorage.setItem(credsKey(code), JSON.stringify(c)); localStorage.setItem('festival:last', code); } catch {} };
+const loadCreds = (code) => { try { return JSON.parse(tabStore.getItem(credsKey(code))); } catch { return null; } };
+const saveCreds = (code, c) => { try { tabStore.setItem(credsKey(code), JSON.stringify(c)); tabStore.setItem('festival:last', code); } catch {} };
 
 function shareLink(code) { return `${location.origin}/?s=${code}`; }
 async function share(code) {
@@ -83,7 +86,7 @@ const urlCode = (params.get('s') || location.pathname.split('/s/')[1] || '').toU
 if (urlCode) $('codeInput').value = urlCode;
 
 (function checkResume() {
-  const code = urlCode || (() => { try { return localStorage.getItem('festival:last'); } catch { return null; } })();
+  const code = urlCode || (() => { try { return tabStore.getItem('festival:last'); } catch { return null; } })();
   if (!code) return;
   const c = loadCreds(code);
   if (!c) return;
@@ -765,7 +768,7 @@ function stageCheck() {
 const exploredKey = () => `festival:fog:${G.code}:${G.pid}`;
 function loadExplored() {
   try {
-    const s = localStorage.getItem(exploredKey());
+    const s = tabStore.getItem(exploredKey());
     if (s) for (let i = 0; i < s.length && i < G.explored.length; i++) G.explored[i] = s.charCodeAt(i) === 49 ? 1 : 0;
   } catch {}
 }
@@ -781,7 +784,7 @@ function revealAround(x, y) {
 setInterval(() => {
   if (!fogDirty || !G.code) return;
   fogDirty = false;
-  try { localStorage.setItem(exploredKey(), Array.from(G.explored, (v) => (v ? '1' : '0')).join('')); } catch {}
+  try { tabStore.setItem(exploredKey(), Array.from(G.explored, (v) => (v ? '1' : '0')).join('')); } catch {}
 }, 2000);
 
 // ====================================================================

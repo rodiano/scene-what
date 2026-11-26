@@ -13,9 +13,10 @@ const ENGINE = (() => {
   const rid8 = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
   const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => ALPH[b % ALPH.length]).join('');
   const norm = (s) => String(s ?? '').toLowerCase().replace(/[.,!?'"]/g, ' ').replace(/\s+/g, ' ').trim();
+  // pr. fane, så to faner i samme browser er to forskellige spillere
   const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    get(k) { try { return JSON.parse(sessionStorage.getItem(k)); } catch { return null; } },
+    set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
   };
 
   let roomApi = null;          // lobby-room (eller null)
@@ -364,5 +365,13 @@ const ENGINE = (() => {
   }
   FakeEventSource.CLOSED = 2;
 
-  return { api, FakeEventSource, hasRoom: async () => !!(await roomP) };
+  // Forbindelsesstatus til visning: { state: 'solo'|'connecting'|'connected', role?, error?, others }
+  function status() {
+    if (!roomApi) return { state: 'solo', others: 0 };
+    if (!room) return { state: 'connecting', others: 0 };
+    if (typeof room.status === 'function') return { ...room.status(), others: peersPresence().length };
+    return { state: room.connected?.() ? 'connected' : 'connecting', others: peersPresence().length };
+  }
+
+  return { api, FakeEventSource, status, hasRoom: async () => !!(await roomP) };
 })();

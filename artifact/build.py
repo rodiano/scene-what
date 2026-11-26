@@ -34,7 +34,39 @@ body = html.split('<body>')[1].split('<script type="module"')[0]
 body = body.replace('<button id="charShare" class="btn small">🔗 Del</button>', '<button id="charShare" class="btn small">📋 Kopiér</button>')
 body = body.replace('<button id="teamShare" class="btn">🔗 Del link</button>', '<button id="teamShare" class="btn">📋 Kopiér kode</button>')
 body = body.replace('<p id="lobbyError" class="error"></p>', '<p id="lobbyError" class="error"></p>\n      <p class="muted">Demo-version: dine medspillere skal åbne denne samme side og skrive koden.</p>')
+body = body.replace('<button id="teamBtn" class="chip">👥 <span id="teamCount">1</span></button>', '<button id="teamBtn" class="chip"><span id="netDot" title="Forbindelse til holdet">⚪</span> 👥 <span id="teamCount">1</span></button>')
+body = body.replace('<h3>👥 Dit hold</h3>', '<h3>👥 Dit hold</h3>\n      <p id="netText" class="net-text"></p>')
 css = (R/'public/style.css').read_text()
+css += '''
+.net-text { background: #f3edff; border-radius: 12px; padding: 8px 12px; font-size: 14px; margin: 0 0 12px; }
+'''
+# Viser forbindelsesstatus i HUD og hold-vinduet (kun i de serverløse versioner)
+game += '''
+(function netStatus() {
+  let last = null;
+  const TXT = {
+    solo: ['⚪', 'Spiller alene – der er ingen forbindelse til medspillere i denne visning.'],
+    connecting: ['🟡', 'Forbinder til holdet…'],
+    connected: ['🟢', 'Forbundet til holdet.'],
+  };
+  setInterval(() => {
+    if (!G.code) return;
+    const st = ENGINE.status();
+    const [dot, txt] = TXT[st.state] || TXT.connecting;
+    $('netDot').textContent = dot;
+    let t = txt;
+    if (st.state === 'connected') t += st.others ? ` Du kan se ${st.others} medspiller${st.others > 1 ? 'e' : ''}.` : ' Ingen andre er med endnu – del koden.';
+    if (st.role) t += ` (rolle: ${st.role})`;
+    if (st.state !== 'connected' && st.error) t += ` Seneste fejl: ${st.error}.`;
+    $('netText').textContent = t;
+    if (last && last !== st.state) {
+      if (st.state === 'connected') toast('🟢 Forbundet til holdet');
+      else if (last === 'connected') toast('🟡 Mistede forbindelsen til holdet – prøver igen…');
+    }
+    last = st.state;
+  }, 1000);
+})();
+'''
 js_json = lambda o: json.dumps(o, ensure_ascii=False).replace('<', '\\u003c')
 out = f"""<title>Festivalspillet</title>
 <meta name="claude:viewport-fit-sides" content="cover">

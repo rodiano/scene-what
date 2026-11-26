@@ -233,6 +233,8 @@ label input { margin-top: 6px; font-weight: 400; }
 @keyframes fadeIn { to { opacity: 1; } }
 @keyframes reveal { 0% { opacity: 0; transform: scale(0.2) rotate(-8deg); filter: blur(12px); } 100% { opacity: 1; transform: none; filter: none; } }
 
+.net-text { background: #f3edff; border-radius: 12px; padding: 8px 12px; font-size: 14px; margin: 0 0 12px; }
+
 </style>
 
   <!-- LOBBY -->
@@ -286,7 +288,7 @@ label input { margin-top: 6px; font-weight: 400; }
       <div id="objective" class="objective"></div>
       <div class="hud-buttons">
         <button id="posterBtn" class="chip">🧩 <span id="posterCount">0</span></button>
-        <button id="teamBtn" class="chip">👥 <span id="teamCount">1</span></button>
+        <button id="teamBtn" class="chip"><span id="netDot" title="Forbindelse til holdet">⚪</span> 👥 <span id="teamCount">1</span></button>
         <button id="helpBtn" class="chip hidden">🆘 <span id="helpCount" class="badge">0</span></button>
         <button id="chatBtn" class="chip">💬 <span id="chatBadge" class="badge hidden">0</span></button>
       </div>
@@ -332,6 +334,7 @@ label input { margin-top: 6px; font-weight: 400; }
     <div class="sheet">
       <button class="close" data-close="teamModal">✕</button>
       <h3>👥 Dit hold</h3>
+      <p id="netText" class="net-text"></p>
       <div id="teamList"></div>
       <div class="share-box">
         <p>Inviter flere med koden <b class="code-big" id="teamCode"></b></p>
@@ -520,9 +523,10 @@ const ENGINE = (() => {
   const rid8 = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
   const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => ALPH[b % ALPH.length]).join('');
   const norm = (s) => String(s ?? '').toLowerCase().replace(/[.,!?'"]/g, ' ').replace(/\s+/g, ' ').trim();
+  // pr. fane, så to faner i samme browser er to forskellige spillere
   const ls = {
-    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    get(k) { try { return JSON.parse(sessionStorage.getItem(k)); } catch { return null; } },
+    set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
   };
 
   let roomApi = null;          // lobby-room (eller null)
@@ -871,7 +875,15 @@ const ENGINE = (() => {
   }
   FakeEventSource.CLOSED = 2;
 
-  return { api, FakeEventSource, hasRoom: async () => !!(await roomP) };
+  // Forbindelsesstatus til visning: { state: 'solo'|'connecting'|'connected', role?, error?, others }
+  function status() {
+    if (!roomApi) return { state: 'solo', others: 0 };
+    if (!room) return { state: 'connecting', others: 0 };
+    if (typeof room.status === 'function') return { ...room.status(), others: peersPresence().length };
+    return { state: room.connected?.() ? 'connected' : 'connecting', others: peersPresence().length };
+  }
+
+  return { api, FakeEventSource, status, hasRoom: async () => !!(await roomP) };
 })();
 
 
@@ -905,9 +917,12 @@ function toast(html, ms = 3500) {
   return el;
 }
 
+// Spilleridentitet gemmes pr. fane (sessionStorage): en genindlæsning fortsætter som samme
+// spiller, mens en ny fane eller en anden enhed med samme kode bliver en ny spiller.
+const tabStore = (() => { try { return window.sessionStorage; } catch { return null; } })();
 const credsKey = (code) => `festival:${code}`;
-const loadCreds = (code) => { try { return JSON.parse(localStorage.getItem(credsKey(code))); } catch { return null; } };
-const saveCreds = (code, c) => { try { localStorage.setItem(credsKey(code), JSON.stringify(c)); localStorage.setItem('festival:last', code); } catch {} };
+const loadCreds = (code) => { try { return JSON.parse(tabStore.getItem(credsKey(code))); } catch { return null; } };
+const saveCreds = (code, c) => { try { tabStore.setItem(credsKey(code), JSON.stringify(c)); tabStore.setItem('festival:last', code); } catch {} };
 
 async function share(code) {
   if (window.__PAGES__) {
@@ -949,7 +964,7 @@ const urlCode = (location.hash.slice(1) || '').toUpperCase().replace(/[^A-Z0-9]/
 if (urlCode) $('codeInput').value = urlCode;
 
 (function checkResume() {
-  const code = urlCode || (() => { try { return localStorage.getItem('festival:last'); } catch { return null; } })();
+  const code = urlCode || (() => { try { return tabStore.getItem('festival:last'); } catch { return null; } })();
   if (!code) return;
   const c = loadCreds(code);
   if (!c) return;
@@ -1631,7 +1646,7 @@ function stageCheck() {
 const exploredKey = () => `festival:fog:${G.code}:${G.pid}`;
 function loadExplored() {
   try {
-    const s = localStorage.getItem(exploredKey());
+    const s = tabStore.getItem(exploredKey());
     if (s) for (let i = 0; i < s.length && i < G.explored.length; i++) G.explored[i] = s.charCodeAt(i) === 49 ? 1 : 0;
   } catch {}
 }
@@ -1647,7 +1662,7 @@ function revealAround(x, y) {
 setInterval(() => {
   if (!fogDirty || !G.code) return;
   fogDirty = false;
-  try { localStorage.setItem(exploredKey(), Array.from(G.explored, (v) => (v ? '1' : '0')).join('')); } catch {}
+  try { tabStore.setItem(exploredKey(), Array.from(G.explored, (v) => (v ? '1' : '0')).join('')); } catch {}
 }, 2000);
 
 // ====================================================================
@@ -2022,6 +2037,31 @@ function startMusic() {
   };
   tick();
 }
+
+(function netStatus() {
+  let last = null;
+  const TXT = {
+    solo: ['⚪', 'Spiller alene – der er ingen forbindelse til medspillere i denne visning.'],
+    connecting: ['🟡', 'Forbinder til holdet…'],
+    connected: ['🟢', 'Forbundet til holdet.'],
+  };
+  setInterval(() => {
+    if (!G.code) return;
+    const st = ENGINE.status();
+    const [dot, txt] = TXT[st.state] || TXT.connecting;
+    $('netDot').textContent = dot;
+    let t = txt;
+    if (st.state === 'connected') t += st.others ? ` Du kan se ${st.others} medspiller${st.others > 1 ? 'e' : ''}.` : ' Ingen andre er med endnu – del koden.';
+    if (st.role) t += ` (rolle: ${st.role})`;
+    if (st.state !== 'connected' && st.error) t += ` Seneste fejl: ${st.error}.`;
+    $('netText').textContent = t;
+    if (last && last !== st.state) {
+      if (st.state === 'connected') toast('🟢 Forbundet til holdet');
+      else if (last === 'connected') toast('🟡 Mistede forbindelsen til holdet – prøver igen…');
+    }
+    last = st.state;
+  }, 1000);
+})();
 
 }
 </script>
