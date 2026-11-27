@@ -49,13 +49,71 @@ så ingen sidder helt fast.
 **Styring:** På mobil trækker man på skærmen (en joystick dukker op), og tryk på en post åbner den.
 På computer bruger man piletaster eller WASD og E/mellemrum. Man åbner også en post ved at gå ind i den.
 
-## Tilpasning
+## Tilpasning: jeres egen festival
+
+Alt indhold styres fra eksterne filer. Koden skal ikke ændres.
 
 | Fil | Indhold |
 |---|---|
-| `config/festival.json` | Festivalnavn, tagline, dato, sted, bands, hemmeligt hovednavn og slutbesked. **Sendes aldrig til browseren.** |
-| `config/questions.json` | Alle spørgsmål, svar og hints pr. post. Svarene ligger kun på serveren. |
+| `config/festival.json` | Festivalnavn, tagline, dato, sted, kunstnere, hemmeligt hovednavn, slutbesked, musik og band. |
+| `config/questions.json` | Alle spørgsmål (134), svar og hints pr. post. Mindst ét spørgsmål pr. post. |
+| `media/` | Jeres musik (mp3/wav/ogg/m4a) og evt. et bandbillede (png/jpg/webp/svg). |
 | `public/world.js` | Kortet (ASCII), posternes navne/emojis, startsteder, figurer og farver. |
+
+**Sådan skifter I festivalen ud** (`config/festival.json`):
+
+```json
+{
+  "festivalName": "JERES FESTIVAL",
+  "tagline": "En kort undertitel",
+  "date": "1.–3. juli",
+  "place": "Stedet",
+  "lineup": ["Band 1", "Band 2", "Band 3"],
+  "headliner": "DET HEMMELIGE HOVEDNAVN",
+  "headlinerTeaser": "Aftenens hemmelige hovednavn er...",
+  "finaleMessage": "Tak for i dag!",
+  "stampsRequired": 3,
+  "music": {
+    "background": "media/jeres-baggrund.mp3",
+    "backgroundVolume": 0.35,
+    "finale": "media/jeres-finale.mp3",
+    "finaleVolume": 0.8
+  },
+  "band": {
+    "members": [
+      { "role": "guitar", "name": "Navn", "color": "#ff4f8b" },
+      { "role": "vokal", "name": "Navn", "color": "#ffb627" },
+      { "role": "trommer", "name": "Navn", "color": "#2ec4b6" },
+      { "role": "bas", "name": "Navn", "color": "#7b2ff7" }
+    ],
+    "image": null
+  }
+}
+```
+
+- **Hemmeligt indtil finalen:** `festivalName`, `date`, `place`, `tagline` og `headliner` vises først, når hele holdet
+  står foran scenen. `lineup` afsløres bogstav for bogstav undervejs. Skriv ikke hovednavnet i `lineup`.
+- **Musik:** Læg jeres filer i `media/`, og skriv stien i `music`. `background` looper under hele spillet og tones ud,
+  når lyset dæmpes i finalen. `finale` looper, når bandet går på scenen. Et fuldt `https://`-link virker også.
+  Sæt et felt til `null` for at slå det fra. Uden `finale` bruges den indbyggede syntetiske musik. Lyden starter
+  ved første tryk på siden (browsernes regel), og 🔊-knappen slår den fra og til. Demo-filerne
+  `media/demo-*.mp3` er lavet med `tools/make-demo-music.py` og må frit udskiftes.
+- **Bandet på scenen:** `members` er 1–6 medlemmer med `role` (`guitar`, `bas`, `vokal`, `trommer` eller `keys`),
+  et valgfrit `name` og en `color` til kantlyset. Trommeslageren står bagest i midten. Sæt `image` til fx
+  `"media/band.png"` (gerne med gennemsigtig baggrund) for at vise et rigtigt billede i stedet for figurerne.
+
+**Hvor læses filerne fra?**
+- **Node-versionen:** `config/` og `media/` som standard. Med `FESTIVAL_CONFIG`, `QUESTIONS_CONFIG` og `MEDIA_DIR`
+  kan de ligge hvor som helst, fx uden for projektet. Serveren genindlæser automatisk, når en fil ændres. Er der en
+  fejl i filen, beholder den den gamle udgave og skriver fejlen i loggen. Festivaloplysningerne sendes aldrig til
+  browseren før finalen.
+- **GitHub Pages:** Siden henter `config/festival.json` og `config/questions.json` ved opstart, så et push med en
+  rettet fil er nok. Eller peg på filer et helt andet sted:
+  `https://rodiano.github.io/scene-what/?config=https://…/festival.json&questions=https://…/questions.json`.
+  Det andet sted skal tillade hentning fra andre sider (CORS). Det gør fx rå filer på GitHub og Gist. En fejl i filen
+  vises på forsiden.
+- **Artifact-versionen:** Filerne bages ind, når den bygges. Musikfiler kan ikke komme med, så den bruger den
+  indbyggede lyd.
 
 Kør `npm run check` efter ændringer i kortet. Den tjekker, at alle startsteder kan nå scenen.
 
@@ -69,6 +127,9 @@ Kør `npm run check` efter ændringer i kortet. Den tjekker, at alle startsteder
 | `SKIP_AFTER_WRONG` | 5 | Forkerte svar før "lad mig komme videre" (0 = aldrig) |
 | `SESSION_TTL_HOURS` | 12 | Hvor længe en inaktiv session gemmes |
 | `MAX_SESSIONS` | 500 | Maks samtidige sessioner |
+| `FESTIVAL_CONFIG` | `config/festival.json` | Sti til festivalfilen |
+| `QUESTIONS_CONFIG` | `config/questions.json` | Sti til spørgsmålsfilen |
+| `MEDIA_DIR` | `media` | Mappe med musik og billeder (serveres på `/media/…`) |
 
 ## Hosting
 
@@ -123,4 +184,4 @@ og `public/vendor/qrcode.js` (qrcode-generator 1.4.4) er alle under MIT-licens.
 - `server.js`: Node `http`, real-time via Server-Sent Events og POST-kald. Ingen afhængigheder.
 - `public/game.js`: Canvas-rendering, tåge (fog of war), touch-joystick, modaler og lyd via WebAudio.
 - Spillerens fremskridt holdes på serveren. Genindlæser man siden, fortsætter man, hvor man slap
-  (gemt i `localStorage` pr. spil-kode).
+  (gemt pr. fane).

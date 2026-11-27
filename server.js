@@ -15,23 +15,51 @@ const MAX_PLAYERS = Math.max(1, parseInt(process.env.MAX_PLAYERS || '6', 10));
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const SESSION_TTL_MS = parseFloat(process.env.SESSION_TTL_HOURS || '12') * 3600_000;
 const MAX_SESSIONS = parseInt(process.env.MAX_SESSIONS || '500', 10);
-const FESTIVAL = JSON.parse(fs.readFileSync(path.join(__dirname, 'config/festival.json'), 'utf8'));
-const QUESTIONS = JSON.parse(fs.readFileSync(path.join(__dirname, 'config/questions.json'), 'utf8')).questions;
-const STAMPS_REQUIRED = Math.min(
-  Object.values(POSTS).filter((p) => p.kind === 'station').length,
-  parseInt(process.env.STAMPS_REQUIRED || FESTIVAL.stampsRequired || '3', 10),
-);
+// Festival og spørgsmål ligger i eksterne filer, som kan ændres, mens serveren kører.
+// FESTIVAL_CONFIG / QUESTIONS_CONFIG kan pege på filer uden for projektet.
+const FESTIVAL_FILE = path.resolve(__dirname, process.env.FESTIVAL_CONFIG || 'config/festival.json');
+const QUESTIONS_FILE = path.resolve(__dirname, process.env.QUESTIONS_CONFIG || 'config/questions.json');
+const MEDIA_DIR = path.resolve(__dirname, process.env.MEDIA_DIR || 'media');
+let FESTIVAL, QUESTIONS, STAMPS_REQUIRED;
+
+function loadConfig() {
+  const fest = JSON.parse(fs.readFileSync(FESTIVAL_FILE, 'utf8'));
+  const qraw = JSON.parse(fs.readFileSync(QUESTIONS_FILE, 'utf8'));
+  const qs = qraw.questions || qraw;
+  for (const key of ['festivalName', 'headliner']) if (!fest[key]) throw new Error(`"${key}" mangler i ${FESTIVAL_FILE}`);
+  if (!Array.isArray(fest.lineup)) throw new Error(`"lineup" skal være en liste i ${FESTIVAL_FILE}`);
+  for (const id of Object.keys(POSTS)) {
+    if (!Array.isArray(qs[id]) || qs[id].length === 0) throw new Error(`Mangler spørgsmål til posten "${id}" i ${QUESTIONS_FILE}`);
+  }
+  FESTIVAL = fest;
+  QUESTIONS = qs;
+  STAMPS_REQUIRED = Math.min(
+    Object.values(POSTS).filter((p) => p.kind === 'station').length,
+    parseInt(process.env.STAMPS_REQUIRED || FESTIVAL.stampsRequired || '3', 10),
+  );
+}
+try { loadConfig(); } catch (e) { console.error('Kunne ikke læse konfigurationen:', e.message); process.exit(1); }
+// Genindlæs automatisk, når filerne ændres (en fejl i filen beholder den gamle udgave)
+for (const f of [FESTIVAL_FILE, QUESTIONS_FILE]) {
+  fs.watchFile(f, { interval: 1500 }, () => {
+    try { loadConfig(); console.log(`🔄 Genindlæste ${path.basename(f)}`); }
+    catch (e) { console.error(`⚠️  ${path.basename(f)} kunne ikke læses – beholder den gamle udgave:`, e.message); }
+  });
+}
+
+// Musik og band til browseren (ikke hemmeligt)
+function publicMedia() {
+  const m = FESTIVAL.music || {}, b = FESTIVAL.band || {};
+  return {
+    music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8 },
+    band: { members: Array.isArray(b.members) ? b.members.slice(0, 6) : [], image: b.image || null },
+  };
+}
 const WRONG_BEFORE_HELP = 2; // forkerte svar før man kan spørge holdet (alternativt: brug alle hints)
 const SKIP_AFTER_WRONG = parseInt(process.env.SKIP_AFTER_WRONG || '5', 10); // nødudgang så ingen sidder fast for evigt
 const ANSWER_COOLDOWN_MS = 1200;
 const ONLINE_GRACE_MS = 15_000;
 
-for (const id of Object.keys(POSTS)) {
-  if (!QUESTIONS[id] || QUESTIONS[id].length === 0) {
-    console.error(`Mangler spørgsmål til posten "${id}" i config/questions.json`);
-    process.exit(1);
-  }
-}
 
 // ---------- Hjælpere ----------
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -218,7 +246,8 @@ function canAskTeam(q, a) {
 }
 
 function assignQuestion(s, p, postId) {
-  if (p.assigned[postId]) return p.assigned[postId];
+  if (p.assigned[postId] && QUESTIONS[postId][p.assigned[postId].qi]) return p.assigned[postId];
+  delete p.assigned[postId];
   const pool = QUESTIONS[postId];
   // Undgå at give samme spørgsmål som holdkammerater ved samme post, så alle får noget nyt
   const taken = new Set();
@@ -296,6 +325,7 @@ function readBody(req) {
 
 function serveStatic(req, res, urlPath) {
   let rel = decodeURIComponent(urlPath);
+  if (rel.startsWith('/media/')) return serveMedia(req, res, rel.slice('/media/'.length));
   if (rel === '/' || rel.startsWith('/s/')) rel = '/index.html';
   const file = path.normalize(path.join(PUBLIC_DIR, rel));
   if (!file.startsWith(PUBLIC_DIR)) return json(res, 403, { error: 'Nej' });
@@ -315,6 +345,28 @@ function authPlayer(s, body) {
   p.lastSeen = now();
   s.lastActive = now();
   return p;
+}
+
+// Musik og billeder fra media-mappen (med Range-understøttelse, så lyd kan spoles og loope i alle browsere)
+const MEDIA_MIME = { '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
+function serveMedia(req, res, rel) {
+  const file = path.normalize(path.join(MEDIA_DIR, rel));
+  if (!file.startsWith(MEDIA_DIR + path.sep)) return json(res, 403, { error: 'Nej' });
+  const type = MEDIA_MIME[path.extname(file).toLowerCase()];
+  if (!type) return json(res, 415, { error: 'Filtypen understøttes ikke' });
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) return json(res, 404, { error: 'Ikke fundet' });
+    const m = /bytes=(\d*)-(\d*)/.exec(req.headers.range || '');
+    if (m) {
+      const start = m[1] ? parseInt(m[1], 10) : 0;
+      const end = m[2] ? Math.min(parseInt(m[2], 10), st.size - 1) : st.size - 1;
+      if (start > end) { res.writeHead(416, { 'Content-Range': `bytes */${st.size}` }); return res.end(); }
+      res.writeHead(206, { 'Content-Type': type, 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-cache' });
+      return fs.createReadStream(file, { start, end }).pipe(res);
+    }
+    res.writeHead(200, { 'Content-Type': type, 'Content-Length': st.size, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-cache' });
+    fs.createReadStream(file).pipe(res);
+  });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -364,7 +416,7 @@ const server = http.createServer(async (req, res) => {
       p.conns++;
       send(res, 'init', {
         me: p.id,
-        config: { maxPlayers: MAX_PLAYERS, stampsRequired: STAMPS_REQUIRED },
+        config: { maxPlayers: MAX_PLAYERS, stampsRequired: STAMPS_REQUIRED, ...publicMedia() },
         players: [...s.players.values()].map(publicPlayer),
         poster: posterView(s),
         chat: s.chat.slice(-50),
@@ -461,7 +513,7 @@ const server = http.createServer(async (req, res) => {
           return json(res, 200, { locked: true, post: postId, need: STAMPS_REQUIRED - stampsOf(p), stamps: stampsOf(p) });
         }
         const a = assignQuestion(s, p, postId);
-        const q = QUESTIONS[postId][a.qi];
+        const q = QUESTIONS[postId][a.qi] || QUESTIONS[postId][(a.qi = 0)];
         return json(res, 200, { post: postId, question: publicQuestion(q, a), canAskTeam: canAskTeam(q, a), canSkip: canSkip(q, a) });
       }
 
@@ -469,7 +521,7 @@ const server = http.createServer(async (req, res) => {
         const postId = String(body.post);
         const a = p.assigned[postId];
         if (!a) return json(res, 400, { error: 'Intet spørgsmål' });
-        const q = QUESTIONS[postId][a.qi];
+        const q = QUESTIONS[postId][a.qi] || QUESTIONS[postId][(a.qi = 0)];
         a.hintsUsed = Math.min((q.hints || []).length, a.hintsUsed + 1);
         return json(res, 200, { question: publicQuestion(q, a), canAskTeam: canAskTeam(q, a), canSkip: canSkip(q, a) });
       }
@@ -481,7 +533,7 @@ const server = http.createServer(async (req, res) => {
         if (p.solved.has(postId)) return json(res, 200, { correct: true });
         if (now() - a.lastAnswer < ANSWER_COOLDOWN_MS) return json(res, 429, { error: 'Vent lige et øjeblik…' });
         a.lastAnswer = now();
-        const q = QUESTIONS[postId][a.qi];
+        const q = QUESTIONS[postId][a.qi] || QUESTIONS[postId][(a.qi = 0)];
         if (checkAnswer(q, body.answer)) {
           markSolved(s, p, postId, answerText(q, body.answer));
           return json(res, 200, { correct: true, stamps: stampsOf(p) });
@@ -494,7 +546,7 @@ const server = http.createServer(async (req, res) => {
         const postId = String(body.post);
         const a = p.assigned[postId];
         if (!a) return json(res, 400, { error: 'Intet spørgsmål' });
-        const q = QUESTIONS[postId][a.qi];
+        const q = QUESTIONS[postId][a.qi] || QUESTIONS[postId][(a.qi = 0)];
         if (!canSkip(q, a)) return json(res, 400, { error: 'Prøv lidt mere først 🙂' });
         markSolved(s, p, postId, answerText(q, q.type === 'choice' ? q.answer : q.answers[0]));
         return json(res, 200, { correct: true, skipped: true });
@@ -504,7 +556,7 @@ const server = http.createServer(async (req, res) => {
         const postId = String(body.post);
         const a = p.assigned[postId];
         if (!a) return json(res, 400, { error: 'Intet spørgsmål' });
-        const q = QUESTIONS[postId][a.qi];
+        const q = QUESTIONS[postId][a.qi] || QUESTIONS[postId][(a.qi = 0)];
         if (!canAskTeam(q, a)) return json(res, 400, { error: 'Brug dine hints først' });
         const open = [...s.help.values()].find((h) => h.pid === p.id && h.post === postId && !h.done);
         if (open) return json(res, 200, { rid: open.rid });

@@ -216,6 +216,8 @@ function connect() {
   es.addEventListener('init', (e) => {
     const d = JSON.parse(e.data);
     G.config = d.config;
+    // har man allerede trykket på siden, må musikken starte med det samme
+    setTimeout(() => { try { if (navigator.userActivation?.hasBeenActive) unlockMusic(); } catch {} }, 0); // efter finale-tjekket herunder
     setPlayers(d.players, true);
     G.poster = d.poster;
     G.chat = d.chat;
@@ -1174,12 +1176,73 @@ function buildCrowd() {
   $('povCrowd').innerHTML = parts.join('');
 }
 
+// ---- Bandet på scenen ----
+// Tegnede silhuetter med kantlys i hvert medlems farve, eller et billede fra festival.json (band.image).
+function bandFigure(role, color) {
+  const body = `<g class="bf-body"><circle cx="50" cy="38" r="13"/><rect x="36" y="52" width="28" height="56" rx="12"/>
+    <rect x="38" y="104" width="10" height="60" rx="5"/><rect x="52" y="104" width="10" height="60" rx="5"/></g>`;
+  const R = (role || '').toLowerCase();
+  let extra = '';
+  if (/trom|drum/.test(R)) {
+    extra = `<g class="bf-arm bf-stick-l"><rect x="22" y="58" width="8" height="34" rx="4"/><rect x="18" y="86" width="3" height="26" rx="1.5" class="bf-stick"/></g>
+      <g class="bf-arm bf-stick-r"><rect x="70" y="58" width="8" height="34" rx="4"/><rect x="79" y="86" width="3" height="26" rx="1.5" class="bf-stick"/></g>
+      <ellipse cx="50" cy="132" rx="30" ry="30" class="bf-drum"/><ellipse cx="50" cy="132" rx="20" ry="20" class="bf-skin"/>
+      <ellipse cx="12" cy="108" rx="16" ry="3" class="bf-cym"/><ellipse cx="88" cy="104" rx="16" ry="3" class="bf-cym"/>`;
+  } else if (/vok|sang|vocal|sing/.test(R)) {
+    extra = `<line x1="74" y1="40" x2="74" y2="166" class="bf-stand"/><circle cx="66" cy="44" r="4" class="bf-mic"/>
+      <g class="bf-arm bf-wave"><rect x="24" y="30" width="8" height="34" rx="4"/></g><rect x="62" y="56" width="8" height="28" rx="4"/>`;
+  } else if (/key|klaver|piano/.test(R)) {
+    extra = `<rect x="14" y="96" width="72" height="10" rx="2" class="bf-keys"/><line x1="24" y1="106" x2="24" y2="166" class="bf-stand"/><line x1="76" y1="106" x2="76" y2="166" class="bf-stand"/>
+      <g class="bf-arm bf-strum"><rect x="28" y="62" width="8" height="34" rx="4"/></g><rect x="64" y="62" width="8" height="34" rx="4"/>`;
+  } else { // guitar eller bas
+    const bas = /bas/.test(R);
+    extra = `<g class="bf-guitar"><line x1="44" y1="92" x2="${bas ? 98 : 92}" y2="${bas ? 50 : 56}" class="bf-neck"/>
+      <ellipse cx="44" cy="96" rx="${bas ? 16 : 14}" ry="${bas ? 13 : 12}" class="bf-inst"/><circle cx="44" cy="96" r="4" class="bf-hole"/></g>
+      <g class="bf-arm bf-strum"><rect x="30" y="62" width="8" height="34" rx="4"/></g><rect x="66" y="58" width="8" height="30" rx="4" transform="rotate(-50 70 60)"/>`;
+  }
+  return `<svg viewBox="0 0 100 170" style="--c:${esc(color)}">${body}${extra}</svg>`;
+}
+function buildBand() {
+  const band = G.config?.band || {};
+  const el = $('povBand');
+  if (band.image) {
+    el.innerHTML = `<img class="pov-band-img" alt="Bandet" src="${esc(band.image)}">`;
+    return;
+  }
+  const members = (band.members && band.members.length ? band.members : [
+    { role: 'guitar', color: '#ff4f8b' }, { role: 'vokal', color: '#ffb627' }, { role: 'trommer', color: '#2ec4b6' }, { role: 'bas', color: '#7b2ff7' },
+  ]).slice(0, 6);
+  // trommeslageren står bagest i midten
+  const drums = members.filter((m) => /trom|drum/i.test(m.role || ''));
+  const front = members.filter((m) => !/trom|drum/i.test(m.role || ''));
+  el.innerHTML = (drums.length ? `<div class="pov-drumriser">${drums.map((m, i) => `<div class="bm drum" style="animation-delay:${i * 0.11}s">${bandFigure(m.role, m.color || '#fff')}${m.name ? `<span>${esc(m.name)}</span>` : ''}</div>`).join('')}</div>` : '')
+    + `<div class="pov-frontline">${frontHtml(front, drums.length > 0)}</div>`;
+  function frontHtml(list, gap) {
+    const fig = (m, i) => `<div class="bm" style="animation-delay:${((i * 0.17) % 0.47).toFixed(2)}s">${bandFigure(m.role, m.color || '#fff')}${m.name ? `<span>${esc(m.name)}</span>` : ''}</div>`;
+    if (!gap) return list.map(fig).join('');
+    // sangeren står tættest på midten; trommerne får plads i en åbning bag ved
+    const singer = list.filter((m) => /vok|sang|vocal|sing/i.test(m.role || ''));
+    const others = list.filter((m) => !singer.includes(m));
+    const half = Math.ceil(others.length / 2);
+    const left = [...others.slice(0, half), ...singer.slice(0, 1)];
+    const right = [...singer.slice(1), ...others.slice(half)];
+    return [...left.map(fig), '<div class="bm-gap"></div>', ...right.map((m, i) => fig(m, i + left.length))].join('');
+  }
+}
+function bandOn() {
+  $('pov').classList.add('band-on');
+  $('povBand').classList.add('on');
+  fitPovText();
+  POV.band = true;
+  startFinaleTrack();
+}
+
 // Navn og hovednavn gøres så store som muligt uden at knække ord på skærmen
-function fitPovText() {
-  for (const [id, max] of [['povName', 0.075], ['povHead', 0.095]]) {
+function fitPovText(scale = $('pov').classList.contains('band-on') ? 0.55 : 1) {
+  for (const [id, max] of [['povName', 0.075 * scale], ['povHead', 0.095 * scale]]) {
     const el = $(id);
     el.classList.add('measuring'); // mål uden bogstavernes startanimation
-    let size = Math.max(22, Math.min(innerWidth, innerHeight) * max);
+    let size = Math.max(16, Math.min(innerWidth, innerHeight) * max);
     el.style.fontSize = size + 'px';
     let guard = 0;
     while (el.scrollWidth > el.clientWidth + 1 && size > 16 && guard++ < 80) { size -= 1; el.style.fontSize = size + 'px'; }
@@ -1290,6 +1353,8 @@ function startFinale(d) {
   $('povHead').textContent = P.headliner || '';
   $('povLineup').innerHTML = (P.lineup || []).map((ch) => `<span>${esc(Array.isArray(ch) ? ch.join('') : ch)}</span>`).join('');
   buildCrowd();
+  buildBand();
+  $('povBand').classList.remove('on');
   $('pov').className = 'pov';
   $('povCurtain').className = 'pov-curtain';
   $('povCurtain').style.display = '';
@@ -1304,6 +1369,7 @@ function startFinale(d) {
   const showAll = () => {
     $('pov').classList.remove('dim', 'pulse');
     $('pov').classList.add('cheer');
+    stopBackgroundMusic(300);
     $('povCurtain').style.display = 'none';
     document.querySelectorAll('#povScreen > div, #povLineup span').forEach((e) => e.classList.add('on'));
     POV.mode = 'show'; POV.lasers = true;
@@ -1312,10 +1378,11 @@ function startFinale(d) {
     $('povActions').classList.add('on');
     $('povSkip').hidden = true;
     murmurStop(0.5);
-    startMusic();
+    bandOn();
   };
   $('povSkip').onclick = () => { POV.run++; showAll(); };
   $('povClose').onclick = () => { $('pov').classList.add('hidden'); POV.active = false; burst(25, 5, 80); };
+  $('povMute').onclick = toggleMute;
   $('povPoster').onclick = () => { renderPoster(); openModal('posterModal'); };
 
   (async () => {
@@ -1323,6 +1390,7 @@ function startFinale(d) {
     povCaption('Hele holdet er samlet foran scenen…');
     await sleep(2800); if (!alive()) return;
     $('pov').classList.add('dim', 'pulse');
+    stopBackgroundMusic(2500);
     POV.mode = 'spots';
     povCaption('Lyset dæmpes…');
     await drumroll(); if (!alive()) return;
@@ -1356,13 +1424,16 @@ function startFinale(d) {
     POV.lasers = true;
     $('pov').classList.add('cheer');
     povConfetti(220);
-    startMusic();
     burst(25, 5, 150);
     for (const [i, el] of [...document.querySelectorAll('#povLineup span')].entries()) {
       await sleep(i ? 260 : 1400); if (!alive()) return;
       el.classList.add('on');
     }
-    await sleep(900); if (!alive()) return;
+    // Bandet går på scenen, og musikken starter
+    await sleep(1600); if (!alive()) return;
+    bandOn();
+    boom(0.8); povFlash(); povConfetti(120);
+    await sleep(2200); if (!alive()) return;
     $('povMsg').textContent = d.message || '';
     $('povActions').classList.add('on');
     $('povSkip').hidden = true;
@@ -1372,7 +1443,79 @@ function startFinale(d) {
 // ====================================================================
 // Lyd (lille syntetiseret – ingen filer)
 // ====================================================================
-let AC = null;
+let AC = null, MASTER = null;
+function masterOut() {
+  if (!MASTER) { MASTER = AC.createGain(); MASTER.gain.value = MUSIC.muted ? 0 : 1; MASTER.connect(AC.destination); }
+  return MASTER;
+}
+
+// ---- Musik fra filer (festival.json → music) ----
+const MUSIC = { bg: null, fin: null, muted: false, unlocked: false };
+try { MUSIC.muted = localStorage.getItem('festival:muted') === '1'; } catch {}
+const clampVol = (v, d) => Math.max(0, Math.min(1, Number.isFinite(+v) ? +v : d));
+function musicCfg() { return G.config?.music || {}; }
+function makeTrack(src, vol) {
+  if (!src) return null;
+  const a = new Audio(src);
+  a.loop = true; a.preload = 'auto'; a.volume = vol; a._vol = vol; a.muted = MUSIC.muted;
+  a.addEventListener('error', () => console.warn('Kunne ikke afspille', src));
+  return a;
+}
+function fade(a, to, ms, done) {
+  if (!a) return done?.();
+  const from = a.volume, t0 = performance.now();
+  const step = () => {
+    const k = Math.min(1, (performance.now() - t0) / ms);
+    a.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+    if (k < 1) requestAnimationFrame(step); else done?.();
+  };
+  step();
+}
+// kaldes ved første tryk/tast (browsere kræver det, før lyd må spille)
+function unlockMusic() {
+  if (MUSIC.unlocked || !G.code || !G.config?.music || MUSIC.muted) return;
+  const m = musicCfg();
+  MUSIC.unlocked = true;
+  if (m.background && !G.finale) {
+    MUSIC.bg = makeTrack(m.background, clampVol(m.backgroundVolume, 0.35));
+    MUSIC.bg.play().catch(() => { MUSIC.unlocked = false; MUSIC.bg = null; });
+  }
+  if (m.finale && !MUSIC.fin) { // "lås op" til senere (iOS)
+    MUSIC.fin = makeTrack(m.finale, clampVol(m.finaleVolume, 0.8));
+    const v = MUSIC.fin.volume; MUSIC.fin.volume = 0;
+    MUSIC.fin.play().then(() => { if (!MUSIC.fin._live) { MUSIC.fin.pause(); MUSIC.fin.currentTime = 0; MUSIC.fin.volume = v; } }).catch(() => { MUSIC.fin.volume = v; });
+  }
+}
+addEventListener('pointerdown', unlockMusic);
+addEventListener('keydown', unlockMusic);
+function stopBackgroundMusic(ms = 1500) {
+  const a = MUSIC.bg; MUSIC.bg = null;
+  fade(a, 0, ms, () => a?.pause());
+}
+function startFinaleTrack() {
+  const m = musicCfg();
+  if (m.finale) {
+    if (!MUSIC.fin) MUSIC.fin = makeTrack(m.finale, clampVol(m.finaleVolume, 0.8));
+    MUSIC.fin._live = true;
+    MUSIC.fin.volume = MUSIC.fin._vol;
+    MUSIC.fin.currentTime = 0;
+    MUSIC.fin.play().catch(() => startMusic());
+  } else startMusic(); // ingen fil: brug den indbyggede syntetiske musik
+}
+function toggleMute() {
+  MUSIC.muted = !MUSIC.muted;
+  try { localStorage.setItem('festival:muted', MUSIC.muted ? '1' : '0'); } catch {}
+  for (const a of [MUSIC.bg, MUSIC.fin]) if (a) a.muted = MUSIC.muted;
+  if (AC && MASTER) MASTER.gain.value = MUSIC.muted ? 0 : 1;
+  updateMuteButtons();
+  if (!MUSIC.muted) unlockMusic();
+}
+function updateMuteButtons() {
+  for (const id of ['muteBtn', 'povMute']) { const b = $(id); if (b) { b.textContent = MUSIC.muted ? '🔇' : '🔊'; b.title = MUSIC.muted ? 'Slå lyd til' : 'Slå lyd fra'; } }
+}
+$('muteBtn').onclick = toggleMute;
+updateMuteButtons();
+
 function initAudio() {
   if (AC) return;
   try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch { AC = null; }
@@ -1385,7 +1528,7 @@ function tone(freq, dur, type = 'sine', vol = 0.15, when = 0) {
   o.type = type; o.frequency.value = freq;
   const t0 = AC.currentTime + when;
   g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-  o.connect(g).connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+  o.connect(g).connect(masterOut()); o.start(t0); o.stop(t0 + dur + 0.02);
 }
 function beep(f, d) { tone(f, d, 'square', 0.05); }
 function chime() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, 'triangle', 0.12, i * 0.09)); }
@@ -1399,7 +1542,7 @@ function noiseHit(dur, vol) {
   const b = AC.createBuffer(1, AC.sampleRate * dur, AC.sampleRate), d = b.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
   const s = AC.createBufferSource(), g = AC.createGain(); g.gain.value = vol;
-  s.buffer = b; s.connect(g).connect(AC.destination); s.start();
+  s.buffer = b; s.connect(g).connect(masterOut()); s.start();
 }
 // ---- lyde til finalen ----
 function noiseBuffer(dur) {
@@ -1413,7 +1556,7 @@ function murmurStart() { // publikum der summer
   const s = AC.createBufferSource(); s.buffer = noiseBuffer(2); s.loop = true;
   const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 480; f.Q.value = 0.7;
   const g = AC.createGain(); g.gain.setValueAtTime(0, AC.currentTime); g.gain.linearRampToValueAtTime(0.06, AC.currentTime + 1.5);
-  s.connect(f).connect(g).connect(AC.destination); s.start();
+  s.connect(f).connect(g).connect(masterOut()); s.start();
   murmurNode = { s, g };
 }
 function murmurStop(fade = 1) {
@@ -1428,7 +1571,7 @@ function whoosh() { // tæppet suser ned
   const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
   f.frequency.setValueAtTime(300, AC.currentTime); f.frequency.exponentialRampToValueAtTime(3500, AC.currentTime + 0.7);
   const g = AC.createGain(); g.gain.setValueAtTime(0.001, AC.currentTime); g.gain.exponentialRampToValueAtTime(0.3, AC.currentTime + 0.45); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.95);
-  s.connect(f).connect(g).connect(AC.destination); s.start();
+  s.connect(f).connect(g).connect(masterOut()); s.start();
 }
 function boom(vol = 1) { // dyb bas
   tone(48, 1.1, 'sine', 0.55 * vol); tone(96, 0.35, 'triangle', 0.15 * vol); noiseHit(0.25, 0.12 * vol);
@@ -1440,12 +1583,12 @@ function cheer(len = 1) { // publikum jubler
   const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 0.6;
   const g = AC.createGain(); g.gain.setValueAtTime(0.001, AC.currentTime);
   g.gain.exponentialRampToValueAtTime(0.16, AC.currentTime + 0.5); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
-  s.connect(f).connect(g).connect(AC.destination); s.start();
+  s.connect(f).connect(g).connect(masterOut()); s.start();
   for (let i = 0; i < 6; i++) { // enkelte "wuhuu"-råb
     const o = AC.createOscillator(), og = AC.createGain(), t0 = AC.currentTime + 0.2 + Math.random() * 1.5;
     o.type = 'sine'; o.frequency.setValueAtTime(500 + Math.random() * 300, t0); o.frequency.exponentialRampToValueAtTime(1000 + Math.random() * 400, t0 + 0.4);
     og.gain.setValueAtTime(0.001, t0); og.gain.exponentialRampToValueAtTime(0.025, t0 + 0.1); og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.6);
-    o.connect(og).connect(AC.destination); o.start(t0); o.stop(t0 + 0.65);
+    o.connect(og).connect(masterOut()); o.start(t0); o.stop(t0 + 0.65);
   }
 }
 async function drumrollShort() {

@@ -299,3 +299,37 @@ label input { margin-top: 6px; font-weight: 400; }
   .pov-curtain.drop { animation-duration: 0.01s; }
   .pov.cheer .crowd-head .hand { animation: none; }
 }
+
+/* ---------- Bandet på scenen ---------- */
+.pov-mute { right: auto; left: 12px; }
+.pov-band { position: absolute; left: 8%; right: 8%; bottom: 9%; height: 58%; z-index: 2; pointer-events: none; opacity: 0; transform: translateY(30px); transition: opacity 1s, transform 1s; }
+.pov-band.on { opacity: 1; transform: none; }
+.pov-frontline { position: absolute; left: 0; right: 0; bottom: 0; height: 100%; display: flex; justify-content: space-evenly; align-items: flex-end; }
+.pov-drumriser { position: absolute; left: 50%; bottom: 12%; height: 74%; transform: translateX(-50%); display: flex; gap: 4%; }
+.pov-band .bm-gap { flex: 0 0 22%; }
+.pov-band .bm { position: relative; height: 100%; aspect-ratio: 100 / 170; display: flex; flex-direction: column; align-items: center; animation: bandBob 0.47s ease-in-out infinite alternate; }
+.pov-band .bm svg { height: 100%; width: auto; overflow: visible; filter: drop-shadow(0 0 6px var(--c)) drop-shadow(0 0 14px var(--c)); }
+.pov-band .bm span { position: absolute; bottom: -1.6em; font-size: clamp(10px, 1.6vmin, 14px); font-weight: 800; white-space: nowrap; text-shadow: 0 1px 4px #000; }
+.pov-band svg .bf-body, .pov-band svg .bf-arm rect, .pov-band svg > rect { fill: #0d0716; stroke: var(--c); stroke-width: 1.6; }
+.pov-band svg .bf-inst { fill: var(--c); stroke: #0d0716; stroke-width: 2; }
+.pov-band svg .bf-hole { fill: #0d0716; }
+.pov-band svg .bf-neck, .pov-band svg .bf-stand { stroke: #d8d2e8; stroke-width: 3; stroke-linecap: round; }
+.pov-band svg .bf-mic { fill: #d8d2e8; }
+.pov-band svg .bf-drum { fill: #0d0716; stroke: var(--c); stroke-width: 2.5; }
+.pov-band svg .bf-skin { fill: var(--c); opacity: 0.35; }
+.pov-band svg .bf-cym { fill: #f2c14e; opacity: 0.9; }
+.pov-band svg .bf-keys { fill: #f4f0ff; stroke: #0d0716; stroke-width: 1; }
+.pov-band svg .bf-stick { fill: #f2c14e; stroke: none; }
+.pov-band svg .bf-strum { transform-origin: 34px 62px; animation: strum 0.235s ease-in-out infinite alternate; }
+.pov-band svg .bf-wave { transform-origin: 28px 64px; animation: strum 0.47s ease-in-out infinite alternate; }
+.pov-band svg .bf-stick-l { transform-origin: 26px 58px; animation: drumHit 0.235s ease-in infinite alternate; }
+.pov-band svg .bf-stick-r { transform-origin: 74px 58px; animation: drumHit 0.235s 0.117s ease-in infinite alternate; }
+.pov-band .pov-band-img { position: absolute; left: 0; right: 0; margin: 0 auto; bottom: 0; height: 100%; max-width: 100%; object-fit: contain; filter: drop-shadow(0 0 18px rgba(255,79,139,0.6)); animation: bandBob 0.47s ease-in-out infinite alternate; }
+.pov.band-on .pov-kicker, .pov.band-on .pov-meta, .pov.band-on .pov-teaser { display: none; }
+.pov.band-on .pov-screen { justify-content: flex-start; padding-top: 3%; }
+@keyframes bandBob { from { transform: translateY(0); } to { transform: translateY(-2.5%); } }
+@keyframes strum { from { transform: rotate(-14deg); } to { transform: rotate(16deg); } }
+@keyframes drumHit { from { transform: rotate(-30deg); } to { transform: rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pov-band .bm, .pov-band svg .bf-strum, .pov-band svg .bf-wave, .pov-band svg .bf-stick-l, .pov-band svg .bf-stick-r, .pov-band .pov-band-img { animation: none; }
+}

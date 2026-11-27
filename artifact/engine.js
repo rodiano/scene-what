@@ -165,6 +165,15 @@ const ENGINE = (() => {
     return { helps, chat, sugg };
   }
 
+  // Musik og band til browseren
+  function publicMedia() {
+    const m = FEST.music || {}, b = FEST.band || {};
+    return {
+      music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8 },
+      band: { members: Array.isArray(b.members) ? b.members.slice(0, 6) : [], image: b.image || null },
+    };
+  }
+
   // ---------- events ----------
   function dispatch(type, data) { for (const l of listeners) l._emit(type, data); }
 
@@ -355,7 +364,7 @@ const ENGINE = (() => {
         const s = snapshot();
         prev = s;
         this._emit('init', {
-          me: me.pid, config: { maxPlayers: MAX_PLAYERS, stampsRequired: STAMPS_REQUIRED },
+          me: me.pid, config: { maxPlayers: MAX_PLAYERS, stampsRequired: STAMPS_REQUIRED, ...publicMedia() },
           players: s.players.map(({ _pr, ...p }) => p), poster: s.poster, chat: s.chat,
           help: [...s.helps.values()].filter((h) => !h.done),
           finale: me.finale ? { poster: s.poster, teaser: FEST.headlinerTeaser, message: FEST.finaleMessage, players: [] } : null,

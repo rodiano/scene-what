@@ -1,5 +1,13 @@
 {
-  "_kommentar": "PLADSHOLDERE – ret til jeres rigtige festival. Denne fil sendes ALDRIG til browseren; kun de dele, holdet har låst op, vises.",
+  "_vejledning": [
+    "Ret felterne herunder til jeres egen festival. Filen læses, hver gang spillet startes (Pages-version) eller automatisk ved ændringer (Node-version).",
+    "festivalName, date, place, tagline og headliner afsløres FØRST, når hele holdet står samlet foran scenen.",
+    "lineup afsløres bogstav for bogstav undervejs. Hovednavnet (headliner) skal ikke stå i lineup.",
+    "music: stier til mp3/wav-filer i mappen media/ (eller fulde https-links). Sæt et felt til null for at slå det fra.",
+    "  background = loop under hele spillet, finale = loop når bandet går på scenen. Volume er 0-1.",
+    "band: navne og farver på bandmedlemmerne på scenen til sidst. image = sti til et PNG-billede (gerne med gennemsigtig baggrund), der vises i stedet for de tegnede figurer.",
+    "PLADSHOLDERE: festivalnavn, dato, sted, bands og hovednavn herunder er opdigtede og skal skiftes ud."
+  ],
   "festivalName": "SOLSKINSFESTIVALEN",
   "tagline": "Tre dage med musik, mad og venner",
   "date": "19.–21. juni",
@@ -15,5 +23,20 @@
   "headliner": "STJERNESKUD",
   "headlinerTeaser": "Aftenens hemmelige hovednavn er...",
   "finaleMessage": "Tak fordi I hjalp hinanden hele vejen frem. Rock on! 🤘",
-  "stampsRequired": 3
+  "stampsRequired": 3,
+  "music": {
+    "background": "media/demo-baggrund.mp3",
+    "backgroundVolume": 0.35,
+    "finale": "media/demo-finale.mp3",
+    "finaleVolume": 0.8
+  },
+  "band": {
+    "members": [
+      { "role": "guitar", "name": "", "color": "#ff4f8b" },
+      { "role": "vokal", "name": "", "color": "#ffb627" },
+      { "role": "trommer", "name": "", "color": "#2ec4b6" },
+      { "role": "bas", "name": "", "color": "#7b2ff7" }
+    ],
+    "image": null
+  }
 }

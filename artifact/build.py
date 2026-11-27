@@ -68,6 +68,10 @@ game += '''
 })();
 '''
 js_json = lambda o: json.dumps(o, ensure_ascii=False).replace('<', '\\u003c')
+# artifact-versionen kan ikke have musikfiler med – den bruger den indbyggede syntetiske lyd
+fest_art = dict(fest)
+fest_art['music'] = {'background': None, 'finale': None}
+fest_art['band'] = {**(fest.get('band') or {}), 'image': None}
 out = f"""<title>Festivalspillet</title>
 <script>window.__NO_LINK__ = true;</script>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -84,7 +88,7 @@ out = f"""<title>Festivalspillet</title>
 {body}
 <script>
 {{
-const FESTIVAL_DATA = {js_json(fest)};
+const FESTIVAL_DATA = {js_json(fest_art)};
 const QUESTIONS_DATA = {js_json(qs)};
 {world}
 {engine}
@@ -101,15 +105,38 @@ if len(sys.argv) >= 3 and sys.argv[1] == '--pages':
 <script src="peerjs.min.js"></script>
 <script src="mqtt.min.js"></script>
 <script>
-{{
-const FESTIVAL_DATA = {js_json(fest)};
-const QUESTIONS_DATA = {js_json(qs)};
-{world}
 {qrlib}
+</script>
+<script>
+{world}
+</script>
+<script>
+// Festival og spørgsmål hentes fra eksterne filer ved opstart, så de kan rettes uden at bygge om.
+// Standard: config/festival.json og config/questions.json ved siden af siden.
+// Andre filer (fx et link til en fil på nettet): ?config=https://…/festival.json&questions=https://…/questions.json
+(async () => {{
+  const qp = new URLSearchParams(location.search);
+  const load = async (url) => {{
+    const res = await fetch(url, {{ cache: 'no-cache' }});
+    if (!res.ok) throw new Error(`${{url}} (HTTP ${{res.status}})`);
+    try {{ return await res.json(); }} catch {{ throw new Error(`${{url}} er ikke gyldig JSON – tjek kommaer og anførselstegn`); }}
+  }};
+  let FESTIVAL_DATA, QUESTIONS_DATA;
+  try {{
+    const [f, q] = await Promise.all([load(qp.get('config') || 'config/festival.json'), load(qp.get('questions') || 'config/questions.json')]);
+    FESTIVAL_DATA = f;
+    QUESTIONS_DATA = q.questions || q;
+    for (const id of Object.keys(POSTS)) if (!Array.isArray(QUESTIONS_DATA[id]) || !QUESTIONS_DATA[id].length) throw new Error(`Der mangler spørgsmål til posten "${{id}}"`);
+    if (!FESTIVAL_DATA.festivalName || !Array.isArray(FESTIVAL_DATA.lineup)) throw new Error('festival.json mangler festivalName eller lineup');
+  }} catch (e) {{
+    document.getElementById('lobbyError').textContent = 'Kunne ikke indlæse festivalen: ' + e.message;
+    console.error(e);
+    return;
+  }}
 {peer}
 {engine}
 {game}
-}}
+}})();
 </script>"""
     head = """<!doctype html>
 <html lang="da">
@@ -124,6 +151,12 @@ const QUESTIONS_DATA = {js_json(qs)};
     (site/'index.html').write_text(doc)
     shutil.copy(R/'artifact/vendor/peerjs.min.js', site/'peerjs.min.js')
     shutil.copy(R/'artifact/vendor/mqtt.min.js', site/'mqtt.min.js')
+    # eksterne filer: festival, spørgsmål og medier (musik, billeder)
+    (site/'config').mkdir(exist_ok=True)
+    for name in ('festival.json', 'questions.json'):
+        shutil.copy(R/'config'/name, site/'config'/name)
+    if (R/'media').is_dir():
+        shutil.copytree(R/'media', site/'media', dirs_exist_ok=True)
     (site/'.nojekyll').write_text('')
     print(site/'index.html', len(doc))
 else:
