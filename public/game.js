@@ -1,5 +1,5 @@
 import {
-  TILE, MAP, W, H, POSTS, LEGEND, ROUTES, STAGE, LABELS, SOLID,
+  TILE, MAP, W, H, POSTS, LEGEND, ROUTES, STAGE, LABELS, SOLID, FUN, VILLAGE,
   tileAt, postAt, zoneAt, inRect, AVATARS, COLORS,
 } from './world.js';
 
@@ -597,7 +597,96 @@ async function suggest(rid, payload) {
 const auth = (o) => ({ pid: G.pid, token: G.token, ...o });
 let qState = null; // { post, question, canAskTeam, canSkip, wrongOptions:Set }
 
+// ====================================================================
+// Feriebyen: "Kan du lide at sove i telt?" – Nej åbner stien til et sommerhus
+// ====================================================================
+const VREV = { start: null, lastX: null }; // animation af stien, der bygges ud
+const vKey = (k) => `festival:${k}:${G.code}`;
+function villageOpen() { try { return tabStore.getItem(vKey('village')) === 'open'; } catch { return false; } }
+function stayCfg() {
+  return {
+    question: 'Kan du lide at sove i telt?',
+    yes: 'Fedt! Så er du det rette sted – find en god plads til dit telt her på campingpladsen. 🏕️',
+    no: 'Helt i orden – vi har noget andet til dig. Stien til feriebyen er nu åben. Følg den mod vest! 🏡',
+    title: 'Sommerhuset',
+    text: 'Et hyggeligt sommerhus med rigtige senge, varmt bad og kaffe på kanden. Her kan du overnatte under festivalen.',
+    image: null, link: null, button: 'Overnat her',
+    ...(G.config?.stay || {}),
+  };
+}
+const safeUrl = (u) => (u && /^(https:\/\/|media\/|\/media\/)/i.test(String(u)) ? String(u) : null);
+function openFun(id) {
+  if (G.currentPost) return;
+  const c = stayCfg();
+  if (id === 'fun:tentSign' || id === 'fun:villageGate') {
+    G.currentPost = id;
+    $('qEmoji').textContent = '🏕️';
+    $('qTitle').textContent = 'Campingpladsen';
+    if (villageOpen()) {
+      $('qBody').innerHTML = `<p class="qtext">Stien til feriebyen er åben 🏡</p><p class="muted">Følg den mod vest – sommerhuset ligger for enden.</p>`;
+      openModal('qModal');
+      return;
+    }
+    $('qBody').innerHTML = `<p class="qtext">${esc(c.question)}</p>
+      <div class="options tent-answers"><button class="btn" id="tentYes">👍 Ja, telt er hyggeligt</button><button class="btn" id="tentNo">👎 Nej tak</button></div>
+      <div class="feedback" id="tentFeedback"></div>`;
+    $('tentYes').onclick = () => {
+      $('tentFeedback').className = 'feedback good';
+      $('tentFeedback').textContent = c.yes;
+      chime();
+    };
+    $('tentNo').onclick = () => {
+      $('tentFeedback').className = 'feedback good';
+      $('tentFeedback').textContent = c.no;
+      $('tentYes').disabled = $('tentNo').disabled = true;
+      setTimeout(() => { closeModal('qModal'); openVillage(); }, 1600);
+    };
+    openModal('qModal');
+    return;
+  }
+  if (id === 'fun:stayHouse') {
+    G.currentPost = id;
+    let chosen = false;
+    try { chosen = tabStore.getItem(vKey('stay')) === '1'; } catch {}
+    const img = safeUrl(c.image), link = safeUrl(c.link);
+    $('qEmoji').textContent = '🏡';
+    $('qTitle').textContent = c.title;
+    $('qBody').innerHTML = `<div class="stay">
+      ${img ? `<img class="stay-img" src="${esc(img)}" alt="${esc(c.title)}">` : `<div class="stay-img stay-ph" aria-hidden="true"><span>🏡</span></div>`}
+      <p class="qtext">${esc(c.text)}</p>
+      ${link ? `<p><a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Se mere ↗</a></p>` : ''}
+      <button id="stayBtn" class="btn primary big" ${chosen ? 'disabled' : ''}>${chosen ? '✅ Du overnatter her' : `🛏️ ${esc(c.button)}`}</button>
+    </div>`;
+    const im = $('qBody').querySelector('img.stay-img');
+    if (im) im.onerror = () => im.replaceWith(Object.assign(document.createElement('div'), { className: 'stay-img stay-ph', innerHTML: '<span>🏡</span>' }));
+    $('stayBtn').onclick = async () => {
+      try { tabStore.setItem(vKey('stay'), '1'); } catch {}
+      $('stayBtn').disabled = true; $('stayBtn').textContent = '✅ Du overnatter her';
+      chime(); burst(17.5, 29, 40);
+      toast(`🛏️ Godt valg – du overnatter i ${esc(c.title.toLowerCase())}!`);
+      try { await api(`/api/s/${G.code}/chat`, auth({ text: `🛏️ Jeg har valgt at overnatte i ${c.title.toLowerCase()} i feriebyen!` })); } catch {}
+    };
+    openModal('qModal');
+  }
+}
+function openVillage() {
+  try { tabStore.setItem(vKey('village'), 'open'); } catch {}
+  VREV.start = performance.now(); VREV.lastX = null;
+  toast('🏡 Stien til feriebyen bygges ud – følg den mod vest!', 4000);
+  tone(523, 0.2, 'triangle', 0.1); tone(659, 0.2, 'triangle', 0.1, 0.15); tone(784, 0.35, 'triangle', 0.1, 0.3);
+}
+// Er stien/lågen ved x synlig endnu? (bygges ud fra skiltet mod vest)
+function villageRevealedAt(x, t) {
+  if (!villageOpen()) return false;
+  if (VREV.start === null) return true;
+  return t - VREV.start >= (VILLAGE.pathFromX - x) * 70;
+}
+function villageHidden(x, y, t) {
+  return VILLAGE.pathRows.includes(y) && x >= VILLAGE.pathToX && x <= VILLAGE.pathFromX && !villageRevealedAt(x, t);
+}
+
 async function openPost(postId) {
+  if (String(postId).startsWith('fun:')) return openFun(postId);
   if (G.currentPost || G.finale) return;
   const post = POSTS[postId];
   G.currentPost = postId;
@@ -812,9 +901,24 @@ function handleTap(cx, cy) {
   if (!post) return;
   const d = Math.hypot(tx + 0.5 - G.me.x, ty + 0.5 - G.me.y);
   if (d < 2.6) openPost(post);
-  else toast(`${POSTS[post].emoji} Gå tættere på ${esc(POSTS[post].name)}`, 1800);
+  else toast(`${postInfo(post).emoji} Gå tættere på ${esc(postInfo(post).name)}`, 1800);
+}
+// Navn og emoji for både rigtige poster og de sjove steder (fun:…)
+const FUN_INFO = {
+  'fun:tentSign': { emoji: '🏕️', name: 'Skiltet' },
+  'fun:villageGate': { emoji: '🌳', name: 'Hækken' },
+  'fun:stayHouse': { emoji: '🛏️', name: 'Sommerhuset' },
+};
+function postInfo(id) { return FUN_INFO[id] || POSTS[id]; }
+function funId(tx, ty) {
+  const f = FUN[tileAt(tx, ty)];
+  if (!f) return null;
+  if (f === 'villageGate' && villageOpen()) return null;
+  return 'fun:' + f;
 }
 function interactivePostAt(tx, ty) {
+  const fun = funId(tx, ty);
+  if (fun) return fun;
   const post = postAt(tx, ty);
   if (!post) return null;
   if (POSTS[post].kind === 'gate' && mySolved().has(post)) return null;
@@ -843,6 +947,7 @@ const R = 0.3;
 function solidTile(tx, ty) {
   const c = tileAt(tx, ty);
   if (SOLID.has(c)) return true;
+  if (FUN[c]) return FUN[c] === 'villageGate' ? !villageOpen() : true;
   const post = LEGEND[c];
   if (post) return POSTS[post].kind === 'station' || !mySolved().has(post);
   return false;
@@ -850,7 +955,7 @@ function solidTile(tx, ty) {
 function hit(x, y) {
   for (const [cx, cy] of [[x - R, y - R], [x + R, y - R], [x - R, y + R], [x + R, y + R]]) {
     const tx = Math.floor(cx), ty = Math.floor(cy);
-    if (solidTile(tx, ty)) return { post: postAt(tx, ty) };
+    if (solidTile(tx, ty)) return { post: postAt(tx, ty) || funId(tx, ty) };
   }
   return null;
 }
@@ -861,7 +966,7 @@ function onBump(post) {
   if (bump.post === post && t - bump.t < 600) { bump.t = t; return; }
   bump = { post, t };
   if (!anyModalOpen()) {
-    if (POSTS[post].kind === 'gate' && mySolved().has(post)) return;
+    if (POSTS[post]?.kind === 'gate' && mySolved().has(post)) return;
     openPost(post);
   }
 }
@@ -904,7 +1009,7 @@ function update(dt) {
   // vis handlingsknap når man står ved en post
   const near = nearestPost();
   $('actionBtn').classList.toggle('hidden', !near || anyModalOpen());
-  if (near) $('actionBtn').textContent = POSTS[near].emoji;
+  if (near) $('actionBtn').textContent = postInfo(near).emoji;
 
   sendMove();
   stageCheck();
@@ -975,8 +1080,10 @@ addEventListener('resize', resize);
 const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) ^ 0x5bf03635; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 const GRASS = ['#5da545', '#62ab4a', '#58a042'];
 
-function drawGround(c, x, y, px, py) {
+function drawGround(c, x, y, px, py, t = performance.now()) {
   const s = TILE;
+  if ((c === ',' || c === 'v') && villageHidden(x, y, t)) c = '.'; // stien til feriebyen er ikke bygget endnu
+  else if (c === 'v') c = ',';
   if (c === ',' || LEGEND[c] && POSTS[LEGEND[c]].kind === 'gate') { ctx.fillStyle = '#dcc394'; ctx.fillRect(px, py, s, s); if (hash(x, y) > 0.7) { ctx.fillStyle = '#cdb383'; ctx.fillRect(px + 8, py + 12, 4, 3); } return; }
   if (c === '=') { ctx.fillStyle = '#55575e'; ctx.fillRect(px, py, s, s); if (x % 2 === 0) { ctx.fillStyle = '#e8e2c8'; ctx.fillRect(px + 4, py + 15, 20, 2); } return; }
   if (c === ':') { ctx.fillStyle = (x + y) % 2 ? '#7a5c48' : '#836350'; ctx.fillRect(px, py, s, s); return; }
@@ -1037,6 +1144,31 @@ function drawObject(c, x, y, px, py, t) {
       break;
     }
     case 'R': emoji('🚲', px + 16, py + 17, 24); break;
+    case 'v': if (!villageRevealedAt(x, t)) drawObject('T', x, y, px, py, t); break; // hæk, indtil lågen åbner
+    case 'h': case 'O': { // huse i feriebyen – tegnes én gang pr. hus fra øverste venstre felt
+      if (tileAt(x - 1, y) === c || tileAt(x, y - 1) === c) break;
+      let w = 1, h = 1;
+      while (tileAt(x + w, y) === c) w++;
+      while (tileAt(x, y + h) === c) h++;
+      drawHouse(px, py, w * s, h * s, c === 'O', x, y, t);
+      break;
+    }
+    case 'o': { // sommerhusets dør og dørmåtte
+      ctx.fillStyle = '#7a4a2a'; roundRect(px + 8, py, 16, 20, 3); ctx.fill();
+      ctx.fillStyle = '#f2c14e'; ctx.beginPath(); ctx.arc(px + 21, py + 11, 1.6, 0, 7); ctx.fill();
+      ctx.fillStyle = '#b5552b'; ctx.fillRect(px + 5, py + 21, 22, 6);
+      let chosen = false; try { chosen = tabStore.getItem(vKey('stay')) === '1'; } catch {}
+      drawBubble(px + 16, py - 4 + Math.sin(t / 300) * 2, chosen ? '✅' : '🛏️');
+      break;
+    }
+    case 'p': { // skilt ved campingpladsen
+      ctx.fillStyle = '#6b4a2b'; ctx.fillRect(px + 14, py + 10, 4, 22);
+      ctx.fillStyle = '#a8703f'; roundRect(px + 2, py + 2, 28, 14, 3); ctx.fill();
+      ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = 1.5; ctx.stroke();
+      emoji('🏕️', px + 16, py + 9, 11);
+      if (!villageOpen()) drawBubble(px + 16, py - 10 + Math.sin(t / 300) * 2, '❓');
+      break;
+    }
     case 'X': {
       const col = ['#ff9f1c', '#2ec4b6', '#e71d36', '#7b2ff7'][Math.floor(hash(x, y) * 4)];
       ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(px + 2, py + 28); ctx.lineTo(px + 16, py + 4); ctx.lineTo(px + 30, py + 28); ctx.fill();
@@ -1081,6 +1213,32 @@ function drawPost(postId, c, x, y, px, py, t) {
   }
 }
 const s2 = () => TILE; // midten af en 2-felts bom
+
+function drawHouse(px, py, pw, ph, special, tx, ty, t) {
+  const walls = special ? '#f4e1c1' : ['#f6d6d6', '#d6ecf6', '#e6f6d6', '#f6f0d0'][Math.floor(hash(tx, ty) * 4)];
+  const roof = special ? '#b3162f' : ['#c0392b', '#2e6da4', '#2f8f5b', '#8e44ad'][Math.floor(hash(ty, tx) * 4)];
+  const wallTop = py + ph * 0.42;
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(px + 6, py + ph - 3, pw - 4, 6);
+  ctx.fillStyle = walls; ctx.fillRect(px + 3, wallTop, pw - 6, py + ph - wallTop - 2);
+  ctx.fillStyle = roof; ctx.beginPath(); ctx.moveTo(px - 2, wallTop + 3); ctx.lineTo(px + pw / 2, py + 1); ctx.lineTo(px + pw + 2, wallTop + 3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.beginPath(); ctx.moveTo(px + pw / 2, py + 1); ctx.lineTo(px + pw + 2, wallTop + 3); ctx.lineTo(px + pw / 2, wallTop + 3); ctx.closePath(); ctx.fill();
+  const n = Math.max(1, Math.round(pw / TILE));
+  const glow = special ? 0.65 + 0.35 * Math.sin(t / 700) : 1;
+  for (let i = 0; i < n; i++) {
+    const wx = px + (pw / n) * i + (pw / n) / 2 - 6, wy = wallTop + (py + ph - wallTop) * 0.3;
+    ctx.fillStyle = special ? `rgba(255,205,110,${glow})` : '#9fd3ff';
+    ctx.fillRect(wx, wy, 12, 10);
+    ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillRect(wx + 5.5, wy, 1, 10); ctx.fillRect(wx, wy + 4.5, 12, 1);
+  }
+  if (special) { // skorsten med lidt røg
+    ctx.fillStyle = '#7a4a2a'; ctx.fillRect(px + pw * 0.72, py + ph * 0.12, 8, 14);
+    for (let i = 0; i < 3; i++) {
+      const k = ((t / 2000) + i / 3) % 1;
+      ctx.fillStyle = `rgba(230,230,240,${(1 - k) * 0.5})`;
+      ctx.beginPath(); ctx.arc(px + pw * 0.72 + 4 + Math.sin(k * 6 + i) * 4, py + ph * 0.1 - k * 26, 3 + k * 5, 0, 7); ctx.fill();
+    }
+  }
+}
 
 function drawBubble(x, y, e) {
   ctx.fillStyle = '#fff'; ctx.strokeStyle = '#23183f'; ctx.lineWidth = 1.5;
@@ -1225,7 +1383,12 @@ function render(t, dt) {
     for (let y = STAGE.y; y < STAGE.y + STAGE.h; y++) for (let x = STAGE.x; x < STAGE.x + STAGE.w; x++) G.explored[y * W + x] = 1;
   }
 
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!hiddenStage(x, y)) drawGround(MAP[y][x], x, y, x * TILE, y * TILE);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!hiddenStage(x, y)) drawGround(MAP[y][x], x, y, x * TILE, y * TILE, t);
+  if (VREV.start !== null) { // glimmer, mens stien til feriebyen bygges ud
+    const x = Math.ceil(VILLAGE.pathFromX - (t - VREV.start) / 70);
+    if (x !== VREV.lastX && x >= VILLAGE.pathToX) { VREV.lastX = x; burst(x + 0.5, 32, 5); }
+    if (x < VILLAGE.pathToX - 1) VREV.start = null;
+  }
   if (!stageOpen) drawStageCover(t); // presenningen ses altid – som et mysterium
   drawSoundWaves(t);
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!hiddenStage(x, y)) drawObject(MAP[y][x], x, y, x * TILE, y * TILE, t);
@@ -1233,6 +1396,7 @@ function render(t, dt) {
 
   // skilte
   for (const l of LABELS) {
+    if (l.village && !villageOpen()) continue;
     ctx.font = 'bold 13px system-ui, sans-serif';
     const tw = ctx.measureText(l.text).width + 14;
     ctx.fillStyle = 'rgba(255,250,240,.9)'; roundRect(l.x * TILE - tw / 2, l.y * TILE - 10, tw, 20, 8); ctx.fill();
@@ -1858,6 +2022,7 @@ function spatialAudio() {
   }
 }
 try { if (new URLSearchParams(location.search).get('debug') === 'lyd') window.__lydDebug = {}; } catch {}
+try { if (new URLSearchParams(location.search).get('debug')) window.__festDebug = { pos: () => (G.me ? { x: G.me.x, y: G.me.y } : null) }; } catch {}
 
 // kaldes ved første tryk/tast (browsere kræver det, før lyd må spille)
 // Mobil-browsere (især iPhone/Safari) tillader kun lyd, der startes fra et tryk. Derfor:

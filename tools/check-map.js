@@ -1,8 +1,9 @@
 // Tjekker at alle startsteder kan nå hovedscenen, og at alle bomme ligger på ruten.
-import { MAP, W, H, ROUTES, STAGE, SOLID, LEGEND, POSTS, inRect } from '../public/world.js';
+import { MAP, W, H, ROUTES, STAGE, SOLID, LEGEND, POSTS, FUN, inRect } from '../public/world.js';
 const walk = (x, y, open) => {
   const c = MAP[y]?.[x];
   if (c === undefined || SOLID.has(c)) return false;
+  if (FUN[c]) return FUN[c] === 'villageGate' && open; // lågen til feriebyen (åben ved "Nej")
   const p = LEGEND[c];
   if (p) return POSTS[p].kind === 'gate' && open;
   return true;
@@ -32,5 +33,23 @@ for (const [ch, id] of Object.entries(LEGEND)) if (POSTS[id].kind === 'station')
     found = [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => walk(x+dx, y+dy, true));
   }
   console.log(`${found ? '✅' : '❌'} stand ${POSTS[id].name}`); ok &&= found;
+}
+// feriebyen: sommerhusets dør og skiltet skal kunne nås fra campingpladsen
+{
+  const route = ROUTES.find((r) => r.id === 'D');
+  const [sx, sy] = route.spawn.map(Math.floor);
+  const seen = new Set([`${sx},${sy}`]); const q = [[sx, sy]];
+  while (q.length) {
+    const [x, y] = q.shift();
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = x + dx, ny = y + dy, k = `${nx},${ny}`;
+      if (!seen.has(k) && walk(nx, ny, true)) { seen.add(k); q.push([nx, ny]); }
+    }
+  }
+  for (const [ch, name] of [['o', 'sommerhusets dør'], ['p', 'skiltet ved campingpladsen']]) {
+    let found = false;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === ch) found = [[1,0],[-1,0],[0,1],[0,-1]].some(([dx, dy]) => seen.has(`${x+dx},${y+dy}`));
+    console.log(`${found ? '✅' : '❌'} ${name} kan nås fra campingpladsen`); ok &&= found;
+  }
 }
 process.exit(ok ? 0 : 1);

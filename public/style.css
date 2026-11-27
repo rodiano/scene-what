@@ -401,3 +401,12 @@ label input { margin-top: 6px; font-weight: 400; }
 @media (prefers-reduced-motion: reduce) {
   .giftbox, .giftbox.open .gb-bow, .giftbox.open .gb-lid, .giftbox.open .gb-body, .gift-card { animation-duration: 0.01s !important; animation-delay: 0s !important; }
 }
+
+/* ---------- Feriebyen / sommerhuset ---------- */
+.tent-answers { grid-template-columns: 1fr 1fr; }
+.tent-answers .btn { text-align: center; }
+.stay { text-align: center; }
+.stay-img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 14px; margin: 0 0 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.25); background: #eee; }
+.stay-ph { display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #ffd9a0 0%, #f4a261 45%, #7aa6d6 100%); }
+.stay-ph span { font-size: clamp(64px, 18vw, 110px); filter: drop-shadow(0 6px 10px rgba(0,0,0,0.3)); }
+.stay .qtext { text-align: left; }

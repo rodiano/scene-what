@@ -58,6 +58,7 @@ function publicMedia() {
   return {
     music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8, finaleVideo: m.finaleVideo || null, finaleVideoFiles: autoFinaleVideos(), noVideoProbe: true },
     band: { members: Array.isArray(b.members) ? b.members.slice(0, 6) : [], image: b.image || null },
+    stay: (FESTIVAL.stay && typeof FESTIVAL.stay === 'object') ? FESTIVAL.stay : null,
   };
 }
 const WRONG_BEFORE_HELP = 2; // forkerte svar før man kan spørge holdet (alternativt: brug alle hints)

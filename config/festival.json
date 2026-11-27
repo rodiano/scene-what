@@ -9,6 +9,7 @@
     "band: navne og farver på bandmedlemmerne på scenen til sidst. image = sti til et PNG-billede (gerne med gennemsigtig baggrund), der vises i stedet for de tegnede figurer.",
     "adminKey: hemmelig nøgle til admin/dev-rollen. Åbn spillet med ?admin=NØGLE for at kunne springe spørgsmål over og gå direkte til scenen. Tom (\"\") = slået fra. OBS: I GitHub Pages-versionen kan filen læses af alle – brug en nøgle, I ikke bruger andre steder. Node-versionen kan i stedet bruge miljøvariablen ADMIN_KEY.",
     "gift: julegaven, der skal pakkes op med en kode, før spillet starter. code er ens for alle (store/små bogstaver og mellemrum er ligegyldige). Tom code (\"\") = gaven åbnes med et tryk. Fjern hele gift-blokken for at springe gaven over. Skifter I koden, skal gaven pakkes op igen.",
+    "stay: feriebyen ved campingpladsen. Skiltet spørger question; svarer man nej, åbner stien til feriebyen og sommerhuset. image = billede af overnatningsstedet (fx media/sommerhus.jpg eller et https-link), link = valgfrit link til mere info.",
     "PLADSHOLDERE: festivalnavn, dato, sted, bands og hovednavn herunder er opdigtede og skal skiftes ud."
   ],
   "festivalName": "SOLSKINSFESTIVALEN",
@@ -34,6 +35,16 @@
     "title": "Glædelig jul! 🎄",
     "message": "Tillykke med julegaven! Men den rigtige gave ligger ikke i æsken. Den skal du finde via spillet – sammen med dine medspillere. Løs opgaverne på festivalen, hjælp hinanden, og find vej helt op til den store scene. Dér venter gaven.",
     "button": "Start spillet"
+  },
+  "stay": {
+    "question": "Kan du lide at sove i telt?",
+    "yes": "Fedt! Så er du det rette sted – find en god plads til dit telt her på campingpladsen. 🏕️",
+    "no": "Helt i orden – vi har noget andet til dig. Stien til feriebyen er nu åben. Følg den mod vest! 🏡",
+    "title": "Sommerhuset",
+    "text": "Et hyggeligt sommerhus med rigtige senge, varmt bad og kaffe på kanden. Her kan du overnatte under festivalen.",
+    "image": null,
+    "link": null,
+    "button": "Overnat her"
   },
   "adminKey": "admin-85c1c8ad55",
   "music": {

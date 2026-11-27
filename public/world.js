@@ -5,6 +5,8 @@
 //  B  bod/telt      K  bil            R  cykelstativ    X  telt (camping)
 //  1-9 bomme (spørgsmål for at komme videre)
 //  f m b t i w  festivalposter (spørgsmål giver stempler)
+//  h  hus i feriebyen   O  sommerhuset (overnatningsstedet)   o  sommerhusets dør
+//  p  skilt ved campingpladsen ("Kan du lide at sove i telt?")   v  låge til feriebyen (åbner ved "Nej")
 // Bemærk: Rigtige svar, festivalnavn og bands ligger KUN på serveren (config/).
 
 export const TILE = 32;
@@ -38,14 +40,14 @@ export const MAP = [
     "T.....,,...T.#T.........,,.........T#.T...,,.....T",
     "T#####33##################################77#####T",
     "T.....,,......TTTTTTTTTTTTTTTTTTTTTT......,,.....T",
-    "T=====,,=====.TTTTTTTTTTTTTTTTTTTTTT..X...,,..X..T",
-    "T.....,,......TTT~~~~~~~~~~~~~~~~TTT......,,.....T",
-    "T.K.K.,,.K.K..TTT~~~~~~~~~~~~~~~~TTT....X.,,.....T",
-    "T.....,,......TTT~~~~~~~~~~~~~~~~TTT......,,.X.X.T",
-    "T.....,,......TTT~~~~~~~~~~~~~~~~TTT......,,.....T",
-    "T.K.K.,,.K.K..TTT~~~~~~~~~~~~~~~~TTT..X...,,.....T",
-    "T.....,,......TTT~~~~~~~~~~~~~~~~TTT......,,.X...T",
-    "T.....,,......TTTTTTTTTTTTTTTTTTTTTT...X..,,...X.T",
+    "T=====,,=====.T.OOOO.hh..hh..hh..T.T..X...,,..X..T",
+    "T.....,,......T.OOOO.hh..hh..hh....T......,,.....T",
+    "T.K.K.,,.K.K..T..o..............T..T....Xp,,.....T",
+    "T.....,,......T,,,,,,,,,,,,,,,,,,,,v,,,,,,,,.X.X.T",
+    "T.....,,......T,,,,,,,,,,,,,,,,,,,,v,,,,,,,,.....T",
+    "T.K.K.,,.K.K..TT..hh..hh..~~~..hh..T..X...,,.....T",
+    "T.....,,......T...hh..hh..~~~..hh.TT......,,.X...T",
+    "T.....,,......T.T......T.........T.T...X..,,...X.T",
     "T.....,,......TTTTTTTTTTTTTTTTTTTTTT......,,.....T",
     "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 ];
@@ -93,6 +95,7 @@ export const ZONES = [
   { name: 'Indgang sydvest',   x: 1,  y: 19, w: 12, h: 7 },
   { name: 'Cykelparkeringen',  x: 37, y: 1,  w: 12, h: 12 },
   { name: 'Indgang øst',       x: 37, y: 14, w: 12, h: 4 },
+  { name: 'Feriebyen',         x: 15, y: 27, w: 20, h: 10 },
   { name: 'Campingpladsen',    x: 36, y: 27, w: 13, h: 10 },
   { name: 'Indgang sydøst',    x: 37, y: 19, w: 12, h: 7 },
 ];
@@ -105,10 +108,16 @@ export const LABELS = [
   { text: '🚗 Parkering', x: 3.5, y: 27.6 },
   { text: '🚲 Cykelparkering', x: 45, y: 3.6 },
   { text: '⛺ Camping', x: 45.5, y: 29.5 },
+  { text: '🏡 Feriebyen', x: 25, y: 30.5, village: true },
   { text: '🎡 Festivalpladsen', x: 25, y: 18.2 },
 ];
 
-export const SOLID = new Set(['#', 'T', '~', 'S', 'B', 'K', 'R', 'X']);
+export const SOLID = new Set(['#', 'T', '~', 'S', 'B', 'K', 'R', 'X', 'h', 'O']);
+
+// Sjove steder uden spørgsmål: skiltet ved campingpladsen, lågen til feriebyen og sommerhusets dør
+export const FUN = { p: 'tentSign', v: 'villageGate', o: 'stayHouse' };
+// Stien fra skiltet til feriebyen (bygges ud flise for flise, når man svarer "Nej")
+export const VILLAGE = { x: 15, y: 27, w: 20, h: 10, pathRows: [31, 32], pathFromX: 41, pathToX: 15 };
 
 export const W = MAP[0].length;
 export const H = MAP.length;

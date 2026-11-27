@@ -40,6 +40,23 @@ Indstilles i `config/festival.json` under `gift`:
 - I Node-versionen sendes koden aldrig til browseren. I Pages-versionen står den i `config/festival.json`, som
   alle kan hente.
 
+## Feriebyen (sidespor ved campingpladsen)
+
+Ved stien på campingpladsen står et skilt 🏕️, der spørger: *"Kan du lide at sove i telt?"*
+- **Ja:** en sjov besked – man bliver på campingpladsen.
+- **Nej:** stien bygges ud flise for flise mod vest, en låge i hækken åbner sig, og man kan gå ind i en lille
+  ferieby med huse og en dam. Forrest ligger **sommerhuset** med lys i vinduerne. Går man hen til døren, vises et
+  billede af overnatningsstedet med en tekst, og man kan vælge **"🛏️ Overnat her"**. Holdet får det at vide i chatten.
+
+Feriebyen er et sidespor og påvirker ikke opgaverne eller finalen. Indstilles i `config/festival.json` under `stay`:
+
+| Felt | Betydning |
+|---|---|
+| `question`, `yes`, `no` | Spørgsmålet ved skiltet og svarene på ja/nej. |
+| `title`, `text`, `button` | Overskrift, beskrivelse og knaptekst ved sommerhuset. |
+| `image` | Billede af overnatningsstedet, fx `media/sommerhus.jpg` (læg filen i `media/`) eller et `https://`-link. `null` = en tegnet pladsholder. Billedet vises i 16:10 og beskæres i kanterne. |
+| `link` | Valgfrit `https://`-link til mere information ("Se mere ↗"). |
+
 ## Spillets gang
 
 1. **Session:** Én spiller opretter spillet og får en kode på 6 tegn. Kun dem med koden kommer ind.
