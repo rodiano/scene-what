@@ -49,16 +49,14 @@ for (const f of [FESTIVAL_FILE, QUESTIONS_FILE]) {
 
 // Musik og band til browseren (ikke hemmeligt)
 // media/finale-video.(mp4|webm|mov|m4v) bruges automatisk, hvis den findes og finaleVideo ikke er sat
-function autoFinaleVideo() {
-  for (const ext of ['mp4', 'webm', 'mov', 'm4v']) {
-    if (fs.existsSync(path.join(MEDIA_DIR, `finale-video.${ext}`))) return `media/finale-video.${ext}`;
-  }
-  return null;
+// Alle varianter sendes, så browseren kan vælge et format, den kan afspille (fx mp4 til Safari, webm til andre)
+function autoFinaleVideos() {
+  return ['mp4', 'webm', 'mov', 'm4v'].map((ext) => `finale-video.${ext}`).filter((f) => fs.existsSync(path.join(MEDIA_DIR, f)));
 }
 function publicMedia() {
   const m = FESTIVAL.music || {}, b = FESTIVAL.band || {};
   return {
-    music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8, finaleVideo: m.finaleVideo || autoFinaleVideo(), noVideoProbe: true },
+    music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8, finaleVideo: m.finaleVideo || null, finaleVideoFiles: autoFinaleVideos(), noVideoProbe: true },
     band: { members: Array.isArray(b.members) ? b.members.slice(0, 6) : [], image: b.image || null },
   };
 }

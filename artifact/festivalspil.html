@@ -362,6 +362,12 @@ label input { margin-top: 6px; font-weight: 400; }
 .admin-actions .btn small { font-weight: 500; font-size: 13px; opacity: 0.8; }
 .admin-skip { margin-top: 10px; width: 100%; background: #ffe9b0; }
 
+.pov-unmute { position: absolute; left: 50%; top: 62%; transform: translate(-50%, -50%); z-index: 4; font: inherit; font-weight: 800; font-size: clamp(16px, 3vmin, 24px); padding: 12px 20px; border-radius: 999px; border: 2px solid #fff; background: rgba(255,79,139,0.92); color: #fff; cursor: pointer; animation: pulse 1.2s infinite; box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
+
+.sound-test { background: #f6f2ff; border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.5; margin-bottom: 10px; }
+.sound-test div { padding: 2px 0; }
+.sound-test video { width: 100%; max-height: 160px; border-radius: 8px; background: #000; margin: 4px 0; }
+
 .net-text { background: #f3edff; border-radius: 12px; padding: 8px 12px; font-size: 14px; margin: 0 0 12px; }
 
 </style>
@@ -487,7 +493,9 @@ label input { margin-top: 6px; font-weight: 400; }
         <button id="admPlaza" class="btn">🎡 Til festivalpladsen<small>Springer bommene på din rute over</small></button>
         <button id="admStage" class="btn primary">🎤 Direkte til scenen<small>Springer alt over og stiller dig foran scenen</small></button>
         <button id="admFinale" class="btn">🎬 Start finalen for alle nu<small>Uden at vente på, at holdet står ved scenen</small></button>
+        <button id="admSoundTest" class="btn">🔊 Test lyd og video på denne enhed<small>Bip, baggrundsmusik, finalemusik og finalevideo – et par sekunder hver</small></button>
       </div>
+      <div id="soundTest" class="sound-test" hidden></div>
       <p class="muted">I hvert spørgsmål får du også knappen "⏭ Spring over (admin)".</p>
     </div>
   </div>
@@ -520,6 +528,7 @@ label input { margin-top: 6px; font-weight: 400; }
       </div>
       <div class="pov-band" id="povBand"></div>
       <div class="pov-video" id="povVideo"></div>
+      <button class="pov-unmute" id="povUnmute" hidden>🔊 Tryk for lyd</button>
       <div class="pov-curtain" id="povCurtain"><div class="pov-emblem">?</div></div>
       <div class="pov-deck"></div>
     </div>
@@ -1470,6 +1479,55 @@ async function adminSkipPost(post) {
   } catch (e) { toast(esc(e.message)); }
 }
 $('adminBtn').onclick = () => { $('admFinale').dataset.armed = ''; $('admFinale').firstChild.textContent = '🎬 Start finalen for alle nu'; openModal('adminModal'); };
+// Lydtest: alle afspilninger startes i SAMME tryk (iPhone-regel) og testes derefter én ad gangen
+$('admSoundTest').onclick = async () => {
+  const out = $('soundTest');
+  const rows = [];
+  const add = (ok, text) => {
+    rows.push(`<div>${ok === true ? '✅' : ok === false ? '❌' : 'ℹ️'} ${text}</div>`);
+    const v = out.querySelector('video');
+    out.innerHTML = rows.join('');
+    if (v) out.appendChild(v);
+  };
+  out.hidden = false; out.innerHTML = '<div>⏳ Tester …</div>';
+  const m = musicCfg();
+  const name = (src) => esc(String(src).split('/').pop());
+  // 1) start alt i trykket
+  initAudio();
+  const acResume = AC ? AC.resume().catch(() => {}) : Promise.resolve();
+  tone(880, 0.3, 'sine', 0.25);
+  const mk = (src) => { if (!src) return null; const a = new Audio(src); a.preload = 'auto'; return a; };
+  const bgA = mk(m.background), finA = mk(m.finale);
+  if (finaleVideoSource.value === undefined) finaleVideoSource(); // normalt allerede afklaret, når spillet er i gang
+  const vsrc = finaleVideoSource.value || null;
+  let vid = null;
+  if (vsrc?.type === 'file') { vid = document.createElement('video'); vid.src = PRELOAD.url || vsrc.src; vid.playsInline = true; vid.setAttribute('playsinline', ''); }
+  const started = new Map();
+  for (const el of [bgA, finA, vid]) if (el) started.set(el, el.play().then(() => (el === bgA ? 'ok' : (el.pause(), 'ok'))).catch((e) => e?.name || 'fejl'));
+  // 2) resultater
+  await acResume;
+  rows.length = 0;
+  add(AC?.state === 'running', `Lydsystem (Web Audio): ${AC ? AC.state : 'findes ikke'} – du skulle gerne have hørt et bip`);
+  add(navigator.audioSession ? true : null, navigator.audioSession
+    ? 'Lyden spiller, selv om iPhonens lydløs-knap er slået til'
+    : 'Er det en iPhone, så tjek at lydløs-knappen på siden er slået fra (ældre iOS end 16.4)');
+  if (MUSIC.muted) add(null, 'Spillets lyd er slået fra med 🔇 – testen spiller alligevel');
+  const playFor = async (el, label, src, ms = 1800) => {
+    if (!src) return add(null, `${label}: ikke sat op i festival.json`);
+    const res = await started.get(el);
+    if (res !== 'ok') return add(false, `${label} (${name(src)}): ${res === 'NotAllowedError' ? 'blokeret af browseren – prøv at trykke på testen igen' : res === 'NotSupportedError' ? 'filformatet kan ikke afspilles her' : esc(res)}`);
+    try { el.currentTime = 0; await el.play(); await sleep(ms); el.pause(); add(true, `${label} spiller (${name(src)})`); }
+    catch (e) { add(false, `${label} (${name(src)}): ${esc(e?.name || 'fejl')}`); }
+  };
+  await playFor(bgA, 'Baggrundsmusik', m.background);
+  await playFor(finA, 'Finalemusik', m.finale);
+  if (vsrc?.type === 'youtube') add(null, 'Finalevideo fra YouTube: på iPhone kan det kræve et tryk på afspil-knappen i finalen');
+  else if (vsrc?.type === 'file') {
+    out.appendChild(vid);
+    await playFor(vid, 'Finalevideo', vsrc.src, 2500);
+    add(null, PRELOAD.state === 'ready' ? 'Finalevideoen er allerede hentet til denne enhed' : PRELOAD.state === 'loading' ? 'Finalevideoen er ved at blive hentet' : 'Finalevideoen hentes, når den skal bruges');
+  } else add(null, 'Ingen finalevideo – bandet og finalemusikken bruges');
+};
 $('admPlaza').onclick = () => adminGoto('plaza');
 $('admStage').onclick = () => adminGoto('stage');
 $('admFinale').onclick = async () => {
@@ -2422,6 +2480,12 @@ function youtubeId(url) {
   const m = String(url).match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
   return m ? m[1] : null;
 }
+// Kan browseren afspille filtypen? (Safari: mp4/mov – Chrome/Firefox/Android: mp4/webm)
+function canPlayVideo(name) {
+  const type = { mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime' }[String(name).split('.').pop().toLowerCase()];
+  if (!type) return true;
+  try { return document.createElement('video').canPlayType(type) !== ''; } catch { return true; }
+}
 function finaleVideoSource() {
   if (videoSourceP) return videoSourceP;
   const m = musicCfg();
@@ -2431,8 +2495,13 @@ function finaleVideoSource() {
       return id ? { type: 'youtube', id } : { type: 'file', src: m.finaleVideo };
     }
     // Pages-bygget oplyser, hvilke filer der ligger i media/ – så skal vi ikke gætte
-    if (Array.isArray(window.__MEDIA_FILES__)) {
-      const f = VIDEO_EXT.map((ext) => `finale-video.${ext}`).find((n) => window.__MEDIA_FILES__.includes(n));
+    // Server/Pages-bygget oplyser, hvilke filer der ligger i media/ – vælg den første, browseren kan afspille
+    const listed = Array.isArray(m.finaleVideoFiles) ? m.finaleVideoFiles
+      : Array.isArray(window.__MEDIA_FILES__) ? window.__MEDIA_FILES__ : null;
+    if (listed) {
+      const files = VIDEO_EXT.map((ext) => `finale-video.${ext}`).filter((n) => listed.includes(n));
+      const f = files.find((n) => canPlayVideo(n)) || null;
+      if (files.length && !f) console.warn('Ingen af finalevideoerne kan afspilles i denne browser:', files.join(', '));
       return f ? { type: 'file', src: `media/${f}` } : null;
     }
     if (m.noVideoProbe) return null;
@@ -2445,6 +2514,7 @@ function finaleVideoSource() {
     }
     return null;
   })();
+  videoSourceP.then((v) => { finaleVideoSource.value = v; });
   return videoSourceP;
 }
 function videoElement(src) {
@@ -2545,8 +2615,13 @@ function showVideo(v) {
     el.addEventListener('error', videoFailed, { once: true });
     el.currentTime = 0;
     el.play().catch((e) => {
-      if (e && e.name === 'NotAllowedError') el.controls = true; // browseren vil have et tryk – vis afspilknap
-      else videoFailed();
+      if (e && e.name === 'NotAllowedError') {
+        // Browseren vil ikke starte video MED lyd uden et tryk (typisk iPhone/Safari):
+        // start den uden lyd, og vis en stor knap til at slå lyden til
+        el.muted = true;
+        el.play().catch(() => { el.controls = true; });
+        if (!MUSIC.muted) $('povUnmute').hidden = false;
+      } else videoFailed();
     });
   }
   box.classList.add('on');
@@ -2560,7 +2635,13 @@ function videoFailed() {
   POV.video = false; POV.lasers = true;
   bandOn();
 }
+$('povUnmute').onclick = () => {
+  const v = MUSIC.video;
+  if (v?.type === 'file') { v.el.muted = false; v.el.play().catch(() => {}); }
+  $('povUnmute').hidden = true;
+};
 function stopVideo() {
+  $('povUnmute').hidden = true;
   const v = MUSIC.video;
   if (!v) return;
   if (v.type === 'file') { try { v.el.pause(); } catch {} }
@@ -2881,6 +2962,15 @@ function spatialAudio() {
 try { if (new URLSearchParams(location.search).get('debug') === 'lyd') window.__lydDebug = {}; } catch {}
 
 // kaldes ved første tryk/tast (browsere kræver det, før lyd må spille)
+// Mobil-browsere (især iPhone/Safari) tillader kun lyd, der startes fra et tryk. Derfor:
+// - unlockMusic() opretter sporene og prøver at starte baggrundsmusikken
+// - gestureUnlock() kører ved HVERT tryk, indtil alt er bekræftet låst op
+let soundHintShown = false;
+function soundHint() {
+  if (soundHintShown || MUSIC.muted) return;
+  soundHintShown = true;
+  toast('🔊 Tryk på skærmen for at få lyd', 4000);
+}
 function unlockMusic() {
   if (MUSIC.unlocked || !G.code || !G.config?.music || MUSIC.muted) return;
   const m = musicCfg();
@@ -2890,17 +2980,40 @@ function unlockMusic() {
   if (m.background && !G.finale) {
     MUSIC.bg = makeTrack(m.background, clampVol(m.backgroundVolume, 0.35));
     spatialAudio();
-    MUSIC.bg.play().catch(() => { MUSIC.unlocked = false; MUSIC.bg = null; });
+    MUSIC.bg.play().then(() => { MUSIC.bg && (MUSIC.bg._pending = false); }).catch(() => { if (MUSIC.bg) MUSIC.bg._pending = true; soundHint(); });
   }
-  if (m.finale && !MUSIC.fin) { // "lås op" til senere (iOS) – lydløst, da niveauet er 0, indtil bandet spiller
-    const f = (MUSIC.fin = makeTrack(m.finale, clampVol(m.finaleVolume, 0.8)));
-    f.play().then(() => { if (!f._live) { f.pause(); f.currentTime = 0; } }).catch(() => {});
-  }
+  if (m.finale && !MUSIC.fin) MUSIC.fin = makeTrack(m.finale, clampVol(m.finaleVolume, 0.8));
 }
-addEventListener('pointerdown', unlockMusic);
-addEventListener('keydown', unlockMusic);
-// vågn lydsystemet, hvis browseren har sat det på pause
-for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { if (AC && AC.state === 'suspended') AC.resume().catch(() => {}); });
+function gestureUnlock() {
+  initAudio();
+  if (AC && AC.state !== 'running') AC.resume().catch(() => {});
+  unlockMusic();
+  const bg = MUSIC.bg;
+  if (bg && !bg._stopping && (bg._pending || bg.paused) && !MUSIC.muted) {
+    bg.play().then(() => { bg._pending = false; }).catch(() => {});
+  }
+  // finale-musikken "låses op" lydløst (niveau 0 indtil bandet spiller), så den må starte senere uden tryk
+  const f = MUSIC.fin;
+  if (f && !f._unlocked && !f._live) {
+    f.play().then(() => { f._unlocked = true; if (!f._live) { f.pause(); f.currentTime = 0; } }).catch(() => {});
+  }
+  if (f && f._live && f.paused && !MUSIC.muted) f.play().catch(() => {});
+}
+addEventListener('pointerdown', gestureUnlock);
+addEventListener('keydown', gestureUnlock);
+// Tilbage fra skærmlås/anden app: start lyden igen (eller bed om et tryk)
+function resumeAfterHidden() {
+  if (document.hidden || MUSIC.muted) return;
+  if (AC && AC.state !== 'running') AC.resume().catch(() => {});
+  for (const a of [MUSIC.bg, MUSIC.fin]) {
+    if (!a || a._stopping || (a === MUSIC.fin && !a._live) || !a.paused) continue;
+    a.play().catch(() => { a._pending = true; soundHintShown = false; soundHint(); });
+  }
+  const v = MUSIC.video;
+  if (v?.type === 'file' && POV.active && v.el.paused) v.el.play().catch(() => {});
+}
+document.addEventListener('visibilitychange', resumeAfterHidden);
+addEventListener('pageshow', resumeAfterHidden);
 function stopBackgroundMusic(ms = 1500) {
   const a = MUSIC.bg; MUSIC.bg = null;
   if (!a) return;
@@ -2915,7 +3028,10 @@ function startFinaleTrack() {
     MUSIC.fin._live = true;
     MUSIC.fin.currentTime = 0;
     spatialAudio();
-    MUSIC.fin.play().catch(() => startMusic());
+    MUSIC.fin.play().catch((e) => {
+      if (e && e.name === 'NotAllowedError') { MUSIC.fin._pending = true; soundHintShown = false; soundHint(); } // iPhone: kræver et tryk
+      else startMusic(); // filen kan ikke afspilles: brug den syntetiske musik
+    });
   } else startMusic(); // ingen fil: brug den indbyggede syntetiske musik
 }
 function toggleMute() {
@@ -2937,6 +3053,8 @@ $('muteBtn').onclick = toggleMute;
 updateMuteButtons();
 
 function initAudio() {
+  // iPhone: spil lyd selv om telefonens lydløs-knap er slået til (Safari 16.4+)
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch {}
   if (AC) return;
   try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch { AC = null; }
 }

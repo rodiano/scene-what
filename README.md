@@ -137,6 +137,44 @@ Alt indhold styres fra eksterne filer. Koden skal ikke ændres.
 
 Kør `npm run check` efter ændringer i kortet. Den tjekker, at alle startsteder kan nå scenen.
 
+## Lyd og video på Mac, iPhone og Android
+
+**Brug formater, som alle browsere kan afspille:**
+
+| Til | Format | Bemærk |
+|---|---|---|
+| Musik (`background`, `finale`) | **MP3**, 128–192 kbps, 44,1 kHz | 320 kbps giver dobbelt så store filer uden hørbar forskel i telefoner. WAV virker, men er ca. 10 gange større. |
+| Finalevideo | **MP4 med H.264-video og AAC-lyd** | Virker i Safari (Mac/iPhone), Chrome, Firefox og Android. Undgå WebM alene (Safari er usikker) og HEVC-.mov (virker ikke på Android/Chrome). Læg evt. både `finale-video.mp4` og `finale-video.webm` – spillet vælger den, browseren kan afspille. |
+
+Konvertering med [ffmpeg](https://ffmpeg.org/) (gratis):
+
+```bash
+# musik → mp3 i 160 kbps
+ffmpeg -i min-musik.wav -b:a 160k media/baggrund.mp3
+# video → mp4 (H.264 + AAC), maks. 1280 px bred, klar til hurtig start på mobil
+ffmpeg -i min-video.mov -c:v libx264 -preset slow -crf 23 -vf "scale='min(1280,iw)':-2" -c:a aac -b:a 160k -movflags +faststart media/finale-video.mp4
+```
+
+**Det tager spillet sig af:**
+- Browsere (især på iPhone og Mac) tillader kun lyd efter et tryk. Spillet starter musikken ved første tryk og viser
+  "🔊 Tryk på skærmen for at få lyd", hvis det bliver blokeret. Finalemusikken låses op i samme tryk, så den kan
+  starte af sig selv i finalen.
+- Vil browseren ikke starte finalevideoen med lyd, starter den uden lyd, og en stor "🔊 Tryk for lyd"-knap vises.
+- iPhone: Lyden spiller også, når lydløs-knappen på siden er slået til (iOS 16.4 og nyere). På ældre iOS skal
+  lydløs være slået fra.
+- Efter skærmlås eller skift til en anden app startes lyden igen. Ellers beder spillet om et tryk.
+- Er videoen i et format, browseren ikke kan afspille, eller er filen i stykker, vises bandet og finalemusikken i
+  stedet.
+
+**Sådan tjekker I en telefon eller Mac:** Åbn spillet med admin-nøglen (se nedenfor), tryk på 🛠️ og
+**"🔊 Test lyd og video på denne enhed"**. Testen spiller et bip, baggrundsmusikken, finalemusikken og
+finalevideoen et par sekunder hver og viser ✅/❌ for hver del med forklaring. Gør det på mindst én iPhone, én
+Android-telefon og én Mac med Safari, før arrangementet.
+
+Kendte begrænsninger: `<audio loop>` kan give en lille pause, når et nummer starter forfra – lav gerne
+musikken, så den slutter et naturligt sted. YouTube-videoer kan på iPhone kræve et tryk på YouTubes egen
+afspil-knap. Afstands-effekten (lyden fra scenen) kræver, at musikken ligger i `media/` på samme adresse som spillet.
+
 ## Admin / dev-rolle
 
 Til test og afvikling kan en admin springe spørgsmål over og gå direkte til scenen.
