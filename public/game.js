@@ -224,6 +224,7 @@ function connect() {
     G.helps = new Map(d.help.map((h) => [h.rid, h]));
     for (const h of d.help) if (h.pid === G.pid) G.myHelpRid[h.post] = h.rid;
     renderChat(); renderHelps(); renderPoster(); updateHud();
+    setTimeout(() => preloadFinaleVideo(), 4000); // når spillet er kommet i gang
     if (d.finale && !G.finale) {
       // Finalen er allerede i gang (fx genindlæst side): vis showet, hvis denne fane ikke har set det
       G.finale = d.finale;
@@ -1246,6 +1247,167 @@ function buildBand() {
     return [...left.map(fig), '<div class="bm-gap"></div>', ...right.map((m, i) => fig(m, i + left.length))].join('');
   }
 }
+// ---- Finalevideo i stedet for bandet ----
+// 1) music.finaleVideo i festival.json (YouTube-link eller fil)  2) media/finale-video.mp4|webm|mov|m4v
+// 3) ellers bandet og finale-musikken. Kan videoen ikke afspilles, falder vi tilbage til bandet.
+const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v'];
+let videoSourceP = null;
+function youtubeId(url) {
+  const m = String(url).match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+function finaleVideoSource() {
+  if (videoSourceP) return videoSourceP;
+  const m = musicCfg();
+  videoSourceP = (async () => {
+    if (m.finaleVideo) {
+      const id = youtubeId(m.finaleVideo);
+      return id ? { type: 'youtube', id } : { type: 'file', src: m.finaleVideo };
+    }
+    // Pages-bygget oplyser, hvilke filer der ligger i media/ – så skal vi ikke gætte
+    if (Array.isArray(window.__MEDIA_FILES__)) {
+      const f = VIDEO_EXT.map((ext) => `finale-video.${ext}`).find((n) => window.__MEDIA_FILES__.includes(n));
+      return f ? { type: 'file', src: `media/${f}` } : null;
+    }
+    if (m.noVideoProbe) return null;
+    for (const ext of VIDEO_EXT) {
+      const src = `media/finale-video.${ext}`;
+      try {
+        const res = await fetch(src, { method: 'HEAD', cache: 'no-cache' });
+        if (res.ok && !/json|html/.test(res.headers.get('content-type') || '')) return { type: 'file', src };
+      } catch { /* ingen fil */ }
+    }
+    return null;
+  })();
+  return videoSourceP;
+}
+function videoElement(src) {
+  const box = $('povVideo');
+  let el = box.querySelector('video');
+  if (!el) {
+    el = document.createElement('video');
+    el.playsInline = true; el.loop = true; el.preload = 'auto';
+    el.setAttribute('playsinline', '');
+    el.src = PRELOAD.url || src;
+    box.replaceChildren(el);
+  } else if (PRELOAD.url && el.src !== PRELOAD.url && el.paused) {
+    el.src = PRELOAD.url; // den færdighentede kopi er klar – brug den
+  }
+  el.muted = MUSIC.muted;
+  return el;
+}
+
+// ---- Hent finalevideoen i baggrunden, mens spillet foregår ----
+// Hele filen hentes med lav prioritet og gemmes i hukommelsen, så den starter med det samme i finalen.
+// Meget store filer (eller "spar data" på mobilen) bufferes i stedet af browseren fra starten af filen.
+const PRELOAD = { state: 'idle', bytes: 0, total: 0, url: null };
+const PRELOAD_MAX_MB = (() => { try { return matchMedia('(pointer: coarse)').matches ? 150 : 400; } catch { return 150; } })();
+function updatePreloadText() {
+  const el = $('preloadText');
+  if (!el) return;
+  const mb = (n) => (n / 1e6).toFixed(n < 1e7 ? 1 : 0);
+  const txt = {
+    loading: PRELOAD.total ? `🎬 Finale-overraskelsen hentes: ${Math.floor((PRELOAD.bytes / PRELOAD.total) * 100)} % (${mb(PRELOAD.bytes)} af ${mb(PRELOAD.total)} MB)` : `🎬 Finale-overraskelsen hentes: ${mb(PRELOAD.bytes)} MB`,
+    ready: '🎬 Finale-overraskelsen er klar',
+    stream: '🎬 Finale-overraskelsen gøres klar af browseren',
+  }[PRELOAD.state];
+  el.textContent = txt || '';
+  el.hidden = !txt;
+}
+async function preloadFinaleVideo() {
+  if (PRELOAD.state !== 'idle') return;
+  PRELOAD.state = 'checking';
+  const v = await finaleVideoSource();
+  if (!v || G.finale) { PRELOAD.state = 'none'; return; }
+  if (v.type === 'youtube') {
+    for (const host of ['https://www.youtube-nocookie.com', 'https://i.ytimg.com', 'https://www.google.com']) {
+      const l = document.createElement('link'); l.rel = 'preconnect'; l.href = host; document.head.appendChild(l);
+    }
+    PRELOAD.state = 'youtube';
+    return;
+  }
+  const stream = () => { PRELOAD.state = 'stream'; videoElement(v.src); updatePreloadText(); };
+  try {
+    if (navigator.connection?.saveData) return stream();
+    const res = await fetch(v.src, { priority: 'low' });
+    if (!res.ok || !res.body) return stream();
+    PRELOAD.total = Number(res.headers.get('content-length')) || 0;
+    if (PRELOAD.total > PRELOAD_MAX_MB * 1e6) { res.body.cancel().catch(() => {}); return stream(); }
+    PRELOAD.state = 'loading';
+    const reader = res.body.getReader(), chunks = [];
+    let lastUi = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      PRELOAD.bytes += value.length;
+      if (PRELOAD.bytes > PRELOAD_MAX_MB * 1e6) { reader.cancel().catch(() => {}); return stream(); }
+      if (performance.now() - lastUi > 500) { lastUi = performance.now(); updatePreloadText(); }
+    }
+    const blob = new Blob(chunks, { type: res.headers.get('content-type') || 'video/mp4' });
+    PRELOAD.url = URL.createObjectURL(blob);
+    PRELOAD.state = 'ready';
+    updatePreloadText();
+    const el = $('povVideo').querySelector('video');
+    if (el && el.paused) el.src = PRELOAD.url;
+  } catch (e) {
+    console.warn('Kunne ikke forudhente finalevideoen – den streames i stedet', e);
+    stream();
+  }
+}
+// Videoen placeres lige under hovednavnet, så navnet altid kan ses
+function placeVideo() {
+  const box = $('povVideo'), stage = $('povStage').getBoundingClientRect(), head = $('povHead').getBoundingClientRect();
+  if (!stage.height || !head.height) return;
+  const top = Math.max(stage.height * 0.2, head.bottom - stage.top + stage.height * 0.03);
+  box.style.top = `${(top / stage.height) * 100}%`;
+}
+addEventListener('resize', () => { if (POV.video) requestAnimationFrame(placeVideo); });
+function showVideo(v) {
+  const box = $('povVideo');
+  $('pov').classList.add('band-on', 'video-on');
+  fitPovText();
+  placeVideo();
+  POV.lasers = false; POV.video = true;
+  if (v.type === 'youtube') {
+    const q = new URLSearchParams({ autoplay: '1', loop: '1', playlist: v.id, controls: '1', modestbranding: '1', rel: '0', playsinline: '1', enablejsapi: '1', mute: MUSIC.muted ? '1' : '0' });
+    box.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(v.id)}?${q}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="Finalevideo"></iframe>`;
+    MUSIC.video = { type: 'youtube', el: box.querySelector('iframe') };
+  } else {
+    const el = videoElement(PRELOAD.url || v.src);
+    MUSIC.video = { type: 'file', el };
+    el.addEventListener('error', videoFailed, { once: true });
+    el.currentTime = 0;
+    el.play().catch((e) => {
+      if (e && e.name === 'NotAllowedError') el.controls = true; // browseren vil have et tryk – vis afspilknap
+      else videoFailed();
+    });
+  }
+  box.classList.add('on');
+}
+function videoFailed() {
+  if (!MUSIC.video || MUSIC.video.failed) return;
+  console.warn('Finalevideoen kunne ikke afspilles – viser bandet i stedet');
+  MUSIC.video.failed = true;
+  stopVideo();
+  $('pov').classList.remove('video-on');
+  POV.video = false; POV.lasers = true;
+  bandOn();
+}
+function stopVideo() {
+  const v = MUSIC.video;
+  if (!v) return;
+  if (v.type === 'file') { try { v.el.pause(); } catch {} }
+  else v.el?.remove();
+  $('povVideo').classList.remove('on');
+  MUSIC.video = null;
+}
+// Bandet – eller videoen – går på scenen
+async function stageShow() {
+  const v = await Promise.race([finaleVideoSource(), sleep(2500).then(() => null)]);
+  if (v) showVideo(v); else bandOn();
+}
+
 function bandOn() {
   $('pov').classList.add('band-on');
   $('povBand').classList.add('on');
@@ -1308,7 +1470,7 @@ function povFxLoop() {
       for (let i = 0; i < 6; i++) {
         const x = r.left + r.width * (0.1 + i * 0.16);
         const ang = Math.sin(sec * (0.9 + i * 0.13) + i) * 0.7;
-        cone(x, roofY, ang, Hh * 1.1, 90, cols[(i + Math.floor(sec / 2)) % cols.length], 0.33);
+        cone(x, roofY, ang, Hh * 1.1, 90, cols[(i + Math.floor(sec / 2)) % cols.length], POV.video ? 0.1 : 0.33);
       }
       if (POV.lasers) {
         c.lineWidth = 2;
@@ -1379,7 +1541,9 @@ function startFinale(d) {
   $('povActions').classList.remove('on');
   $('povSkip').hidden = false;
   fitPovText();
-  POV.active = true; POV.mode = 'house'; POV.lasers = false; POV.conf = []; POV.t0 = performance.now();
+  POV.active = true; POV.mode = 'house'; POV.lasers = false; POV.video = false; POV.conf = []; POV.t0 = performance.now();
+  $('povVideo').classList.remove('on');
+  finaleVideoSource().then((v) => { if (v && v.type === 'file') videoElement(v.src); }); // forudindlæs
   povFxLoop();
   updateHud();
 
@@ -1395,10 +1559,13 @@ function startFinale(d) {
     $('povActions').classList.add('on');
     $('povSkip').hidden = true;
     murmurStop(0.5);
-    bandOn();
+    stageShow();
   };
   $('povSkip').onclick = () => { POV.run++; showAll(); };
-  $('povClose').onclick = () => { $('pov').classList.add('hidden'); POV.active = false; burst(25, 5, 80); };
+  $('povClose').onclick = () => {
+    $('pov').classList.add('hidden'); POV.active = false; burst(25, 5, 80);
+    if (MUSIC.video) { stopVideo(); startFinaleTrack(); } // tilbage på pladsen: musikken spiller fra scenen
+  };
   $('povMute').onclick = toggleMute;
   $('povPoster').onclick = () => { renderPoster(); openModal('posterModal'); };
 
@@ -1446,9 +1613,9 @@ function startFinale(d) {
       await sleep(i ? 260 : 1400); if (!alive()) return;
       el.classList.add('on');
     }
-    // Bandet går på scenen, og musikken starter
+    // Bandet (eller finalevideoen) går på scenen, og musikken starter
     await sleep(1600); if (!alive()) return;
-    bandOn();
+    await stageShow(); if (!alive()) return;
     boom(0.8); povFlash(); povConfetti(120);
     await sleep(2200); if (!alive()) return;
     $('povMsg').textContent = d.message || '';
@@ -1523,12 +1690,12 @@ function setTrackLevel(a, vol, pan = 0, lpHz = 20000, smooth = 0.25) {
 // Jo tættere på hovedscenen, jo højere og klarere; langt væk er den svag og dump.
 // Retningen høres i stereo (scenen til venstre = lyd mest fra venstre).
 const SOUND_SOURCE = { x: STAGE.x + STAGE.w / 2, y: STAGE.crowd.y + 2 }; // midt foran scenen
-const SOUND_NEAR = 5, SOUND_FAR = 38, SOUND_MIN = 0.1;
+const SOUND_NEAR = 5, SOUND_FAR = 36, SOUND_MIN = 0.03, SOUND_CURVE = 2.2;
 function stageSoundAt(x, y) {
   const dx = SOUND_SOURCE.x - x, dy = SOUND_SOURCE.y - y;
   const d = Math.hypot(dx, dy);
   const t = Math.max(0, Math.min(1, (d - SOUND_NEAR) / (SOUND_FAR - SOUND_NEAR)));
-  const near = Math.pow(1 - t, 1.6);
+  const near = Math.pow(1 - t, SOUND_CURVE); // højere tal = hurtigere fald med afstanden
   return {
     d,
     mul: SOUND_MIN + (1 - SOUND_MIN) * near,
@@ -1589,6 +1756,10 @@ function toggleMute() {
   MUSIC.muted = !MUSIC.muted;
   try { localStorage.setItem('festival:muted', MUSIC.muted ? '1' : '0'); } catch {}
   for (const a of [MUSIC.bg, MUSIC.fin]) if (a) a.muted = MUSIC.muted;
+  if (MUSIC.video?.type === 'file') MUSIC.video.el.muted = MUSIC.muted;
+  if (MUSIC.video?.type === 'youtube') {
+    try { MUSIC.video.el.contentWindow.postMessage(JSON.stringify({ event: 'command', func: MUSIC.muted ? 'mute' : 'unMute', args: [] }), '*'); } catch {}
+  }
   if (AC && MASTER) MASTER.gain.value = MUSIC.muted ? 0 : 1;
   updateMuteButtons();
   if (!MUSIC.muted) unlockMusic();

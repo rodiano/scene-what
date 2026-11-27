@@ -77,7 +77,8 @@ Alt indhold styres fra eksterne filer. Koden skal ikke ændres.
     "background": "media/jeres-baggrund.mp3",
     "backgroundVolume": 0.35,
     "finale": "media/jeres-finale.mp3",
-    "finaleVolume": 0.8
+    "finaleVolume": 0.8,
+    "finaleVideo": null
   },
   "band": {
     "members": [
@@ -97,12 +98,26 @@ Alt indhold styres fra eksterne filer. Koden skal ikke ændres.
   når lyset dæmpes i finalen. `finale` looper, når bandet går på scenen. Et fuldt `https://`-link virker også.
   Sæt et felt til `null` for at slå det fra.
   **Lyden kommer fra scenen:** Musikken under spillet lyder, som om den spiller fra hovedscenen. Den bliver
-  højere og klarere, jo tættere man kommer, og svagere og mere dump langt væk (ned til 10 %). Retningen høres
+  højere og klarere, jo tættere man kommer, og svagere og mere dump langt væk (ned til 3 % i det fjerneste hjørne). Retningen høres
   i stereo. Bløde lydbølger fra scenen viser, hvor lyden kommer fra. I finalen spiller den for fuld styrke.
   Afstand, dæmpning og retning kræver, at filen ligger på samme adresse som spillet (fx i `media/`). Ved et link
   til en anden side styres kun lydstyrken (og på iPhone slet ikke). Uden `finale` bruges den indbyggede syntetiske musik. Lyden starter
   ved første tryk på siden (browsernes regel), og 🔊-knappen slår den fra og til. Demo-filerne
   `media/demo-*.mp3` er lavet med `tools/make-demo-music.py` og må frit udskiftes.
+- **Finalevideo i stedet for bandet:** Læg en video i `media/` med navnet `finale-video.mp4` (eller `.webm`,
+  `.mov`, `.m4v`), eller skriv et YouTube-link eller en sti i `music.finaleVideo`. Så vises videoen stort på
+  scenens LED-væg i stedet for bandet, lige efter at navn og hovednavn er afsløret, og videoens egen lyd erstatter
+  `finale`-musikken. Findes der ingen video, eller kan den ikke afspilles, kommer bandet og `finale`-musikken som
+  før. Brug mp4 (H.264/AAC), som alle browsere kan afspille. Hold filen under 100 MB (GitHubs grænse pr. fil),
+  gerne langt under, så den indlæses hurtigt på mobil. YouTube-videoer starter med lyd i de fleste browsere,
+  fordi spilleren allerede har trykket på siden. Ellers vises YouTubes egen afspilknap. Lukker man finalen, stopper
+  videoen, og `finale`-musikken spiller videre fra scenen.
+  **Forhåndshentning:** Få sekunder efter at spillet er startet, hentes videofilen i baggrunden med lav prioritet,
+  så den starter med det samme i finalen. Man kan følge det i hold-vinduet (👥). Filer over 400 MB (150 MB på
+  mobil), eller når telefonen sparer på data, hentes ikke helt. Dér begynder browseren i stedet at buffere starten
+  af videoen. Ved YouTube åbnes forbindelsen på forhånd.
+  Node-serveren og Pages-bygget oplyser selv, om der ligger en `finale-video.*` i `media/`. (Byg Pages igen efter at
+  have lagt en video ind, hvilket workflowet gør automatisk ved push.)
 - **Bandet på scenen:** `members` er 1–6 medlemmer med `role` (`guitar`, `bas`, `vokal`, `trommer` eller `keys`),
   et valgfrit `name` og en `color` til kantlyset. Trommeslageren står bagest i midten. Sæt `image` til fx
   `"media/band.png"` (gerne med gennemsigtig baggrund) for at vise et rigtigt billede i stedet for figurerne.

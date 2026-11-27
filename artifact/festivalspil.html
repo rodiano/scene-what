@@ -345,6 +345,16 @@ label input { margin-top: 6px; font-weight: 400; }
   .pov-band .bm, .pov-band svg .bf-strum, .pov-band svg .bf-wave, .pov-band svg .bf-stick-l, .pov-band svg .bf-stick-r, .pov-band .pov-band-img { animation: none; }
 }
 
+/* ---------- Finalevideo på LED-væggen ---------- */
+.pov-video { position: absolute; left: 6%; right: 6%; top: 26%; bottom: 11%; z-index: 2; display: flex; align-items: center; justify-content: center; container-type: size; opacity: 0; transform: scale(0.92); transition: opacity 0.8s, transform 0.8s; pointer-events: none; }
+.pov-video.on { opacity: 1; transform: none; pointer-events: auto; }
+.pov-video video, .pov-video iframe { border: 0; border-radius: 6px; box-shadow: 0 0 30px rgba(255,79,139,0.45), 0 0 80px rgba(123,47,247,0.35); }
+/* video: behold eget format inden for feltet */
+.pov-video video { width: auto; height: auto; max-width: 100%; max-height: 100%; }
+/* YouTube: 16:9, så stort som feltet tillader */
+.pov-video iframe { width: min(100cqw, 100cqh * 16 / 9); height: min(100cqh, 100cqw * 9 / 16); background: #000; }
+.pov.video-on .pov-band { display: none; }
+
 .net-text { background: #f3edff; border-radius: 12px; padding: 8px 12px; font-size: 14px; margin: 0 0 12px; }
 
 </style>
@@ -449,6 +459,7 @@ label input { margin-top: 6px; font-weight: 400; }
       <button class="close" data-close="teamModal">✕</button>
       <h3>👥 Dit hold</h3>
       <p id="netText" class="net-text"></p>
+      <p id="preloadText" class="muted" hidden></p>
       <div id="teamList"></div>
       <div class="share-box">
         <div id="teamQr" class="qr" hidden></div>
@@ -485,6 +496,7 @@ label input { margin-top: 6px; font-weight: 400; }
         <div class="pov-head" id="povHead"></div>
       </div>
       <div class="pov-band" id="povBand"></div>
+      <div class="pov-video" id="povVideo"></div>
       <div class="pov-curtain" id="povCurtain"><div class="pov-emblem">?</div></div>
       <div class="pov-deck"></div>
     </div>
@@ -505,7 +517,7 @@ label input { margin-top: 6px; font-weight: 400; }
   
 <script>
 {
-const FESTIVAL_DATA = {"_vejledning": ["Ret felterne herunder til jeres egen festival. Filen læses, hver gang spillet startes (Pages-version) eller automatisk ved ændringer (Node-version).", "festivalName, date, place, tagline og headliner afsløres FØRST, når hele holdet står samlet foran scenen.", "lineup afsløres bogstav for bogstav undervejs. Hovednavnet (headliner) skal ikke stå i lineup.", "music: stier til mp3/wav-filer i mappen media/ (eller fulde https-links). Sæt et felt til null for at slå det fra.", "  background = loop under hele spillet, finale = loop når bandet går på scenen. Volume er 0-1.", "band: navne og farver på bandmedlemmerne på scenen til sidst. image = sti til et PNG-billede (gerne med gennemsigtig baggrund), der vises i stedet for de tegnede figurer.", "PLADSHOLDERE: festivalnavn, dato, sted, bands og hovednavn herunder er opdigtede og skal skiftes ud."], "festivalName": "SOLSKINSFESTIVALEN", "tagline": "Tre dage med musik, mad og venner", "date": "19.–21. juni", "place": "Engen bag skoven", "lineup": ["De Glade Trommer", "Kaptajn Kazoo", "Månekatten", "Svedbåndet", "Lille Lørdag", "Bølgebryderne"], "headliner": "STJERNESKUD", "headlinerTeaser": "Aftenens hemmelige hovednavn er...", "finaleMessage": "Tak fordi I hjalp hinanden hele vejen frem. Rock on! 🤘", "stampsRequired": 3, "music": {"background": null, "finale": null}, "band": {"members": [{"role": "guitar", "name": "", "color": "#ff4f8b"}, {"role": "vokal", "name": "", "color": "#ffb627"}, {"role": "trommer", "name": "", "color": "#2ec4b6"}, {"role": "bas", "name": "", "color": "#7b2ff7"}], "image": null}};
+const FESTIVAL_DATA = {"_vejledning": ["Ret felterne herunder til jeres egen festival. Filen læses, hver gang spillet startes (Pages-version) eller automatisk ved ændringer (Node-version).", "festivalName, date, place, tagline og headliner afsløres FØRST, når hele holdet står samlet foran scenen.", "lineup afsløres bogstav for bogstav undervejs. Hovednavnet (headliner) skal ikke stå i lineup.", "music: stier til mp3/wav-filer i mappen media/ (eller fulde https-links). Sæt et felt til null for at slå det fra.", "  background = loop under hele spillet, finale = loop når bandet går på scenen. Volume er 0-1.", "  finaleVideo = video, der vises på scenen i stedet for bandet: et YouTube-link eller en fil (mp4/webm). Står den til null, bruges media/finale-video.mp4 (eller .webm/.mov/.m4v), hvis filen findes – ellers bandet og finale-musikken.", "band: navne og farver på bandmedlemmerne på scenen til sidst. image = sti til et PNG-billede (gerne med gennemsigtig baggrund), der vises i stedet for de tegnede figurer.", "PLADSHOLDERE: festivalnavn, dato, sted, bands og hovednavn herunder er opdigtede og skal skiftes ud."], "festivalName": "SOLSKINSFESTIVALEN", "tagline": "Tre dage med musik, mad og venner", "date": "19.–21. juni", "place": "Engen bag skoven", "lineup": ["De Glade Trommer", "Kaptajn Kazoo", "Månekatten", "Svedbåndet", "Lille Lørdag", "Bølgebryderne"], "headliner": "STJERNESKUD", "headlinerTeaser": "Aftenens hemmelige hovednavn er...", "finaleMessage": "Tak fordi I hjalp hinanden hele vejen frem. Rock on! 🤘", "stampsRequired": 3, "music": {"background": null, "finale": null, "finaleVideo": null, "noVideoProbe": true}, "band": {"members": [{"role": "guitar", "name": "", "color": "#ff4f8b"}, {"role": "vokal", "name": "", "color": "#ffb627"}, {"role": "trommer", "name": "", "color": "#2ec4b6"}, {"role": "bas", "name": "", "color": "#7b2ff7"}], "image": null}};
 const QUESTIONS_DATA = {"billet": [{"q": "Hvad hedder Danmarks største musikfestival, som holdes hvert år ved en by på Sjælland?", "type": "choice", "options": ["Smukfest", "Roskilde Festival", "Tinderbox", "Grøn Koncert"], "answer": 1, "hints": ["Festivalen har samme navn som byen.", "Byen er kendt for sin domkirke og sine vikingeskibe."]}, {"q": "Hvad skal man som regel vise ved indgangen for at komme ind på en festival?", "type": "choice", "options": ["Sin madpakke", "Sin billet", "Sit sygesikringskort", "Sine sko"], "answer": 1, "hints": ["Det er noget, man har købt på forhånd.", "Det hedder også en 'adgangs...'"]}, {"q": "I hvilken by holdes festivalen Smukfest?", "type": "choice", "options": ["Aalborg", "Odense", "Skanderborg", "Esbjerg"], "answer": 2, "hints": ["Byen ligger i Østjylland.", "Festivalen foregår i en bøgeskov kaldet Dyrehaven."]}, {"q": "En billet koster 450 kr. Hvad koster 3 billetter? (skriv tallet)", "type": "text", "answers": ["1350", "1.350", "1350 kr", "1.350 kr"], "hints": ["Prøv at regne 3 × 400 og 3 × 50 hver for sig.", "1200 + 150 = ?"]}, {"q": "Hvad kalder man en billet, der giver adgang til alle festivalens dage?", "type": "choice", "options": ["Dagsbillet", "Partoutbillet", "Returbillet", "Klippekort"], "answer": 1, "hints": ["Den gælder for hele festivalen.", "Ordet starter med 'Par-'."]}, {"q": "Hvad kalder man det, når billetter sælges videre ulovligt til en meget højere pris?", "type": "choice", "options": ["Udsalg", "Sortbørssalg", "Loppemarked", "Tilbud"], "answer": 1, "hints": ["Det foregår i det skjulte.", "Ordet indeholder en farve."]}, {"q": "Festivalen åbner kl. 14 og lukker kl. 2 om natten. Hvor mange timer har den åbent? (skriv tallet)", "type": "text", "answers": ["12", "12 timer", "tolv"], "hints": ["Fra kl. 14 til midnat er 10 timer.", "10 + 2 = ?"]}, {"q": "Hvornår på året holdes de fleste store danske musikfestivaler?", "type": "choice", "options": ["Om vinteren", "Om sommeren", "Om efteråret", "Til jul"], "answer": 1, "hints": ["Det er, når det er lunt og lyst om aftenen.", "Tænk på skoleferien."]}], "armbaand": [{"q": "Mange festivalarmbånd har en chip, så man kan betale med dem. Hvilken teknologi bruges også i mobiler, når man betaler ved at holde dem hen til en terminal?", "type": "choice", "options": ["GPS", "NFC", "Bluetooth", "Wi-Fi"], "answer": 1, "hints": ["Det er tre bogstaver.", "Det står for 'Near Field Communication'."]}, {"q": "Hvor mange armbånd skal der bruges til en familie med 2 voksne og 3 børn?", "type": "text", "answers": ["5", "fem"], "hints": ["Alle skal have hvert sit.", "2 + 3 = ?"]}, {"q": "Hvilken af disse ting bærer man IKKE om håndleddet?", "type": "choice", "options": ["Armbånd", "Armbåndsur", "Halskæde", "Svedbånd"], "answer": 2, "hints": ["Kig på ordene – hvor sidder tingen?", "'Hals' sidder ikke på armen."]}, {"q": "Festivalen varer fra torsdag til søndag. Hvor mange dage er det, når begge dage tæller med?", "type": "text", "answers": ["4", "fire"], "hints": ["Tæl: torsdag, fredag, ...", "Torsdag, fredag, lørdag, søndag."]}, {"q": "Hvad er det bedste at gøre, hvis man mister sit festivalarmbånd?", "type": "choice", "options": ["Lave et nyt af snor", "Gå til billet- eller infoteltet", "Gå hjem", "Ingenting"], "answer": 1, "hints": ["Der er nogen, der kan hjælpe.", "Det er der, man fik armbåndet."]}, {"q": "Det koster 2 kr. at lave et armbånd. Hvad koster 500 armbånd? (skriv tallet)", "type": "text", "answers": ["1000", "1.000", "1000 kr", "1.000 kr"], "hints": ["100 armbånd koster 200 kr.", "500 er 5 gange 100."]}, {"q": "Hvilken farve får man, når man blander rød og gul?", "type": "choice", "options": ["Grøn", "Lilla", "Orange", "Brun"], "answer": 2, "hints": ["Det er samme farve som en frugt.", "Farven på en appelsin."]}, {"q": "Man har armbånd på i 4 døgn. Hvor mange timer er det? (skriv tallet)", "type": "text", "answers": ["96", "96 timer"], "hints": ["Et døgn har 24 timer.", "4 × 24 = ?"]}], "parkering": [{"q": "Hvad betyder et blåt skilt med et stort hvidt P?", "type": "choice", "options": ["Politi", "Parkering", "Posthus", "Picnicplads"], "answer": 1, "hints": ["Du står lige ved siden af et.", "Her må man stille bilen."]}, {"q": "Parkeringspladsen har 12 rækker med plads til 25 biler i hver. Hvor mange biler er der plads til?", "type": "text", "answers": ["300"], "hints": ["4 rækker med 25 biler er 100 biler.", "12 rækker er 3 gange så mange som 4 rækker."]}, {"q": "Hvilken farve i et lyskryds betyder STOP?", "type": "choice", "options": ["Grøn", "Gul", "Rød", "Blå"], "answer": 2, "hints": ["Det er den øverste lampe.", "Samme farve som et jordbær."]}, {"q": "Hvad kalder man det, når flere personer deler én bil for at komme til festivalen?", "type": "choice", "options": ["Rundkørsel", "Samkørsel", "Bilkø", "Overhaling"], "answer": 1, "hints": ["Man kører 'sammen'.", "Ordet starter med 'Sam-'."]}, {"q": "Hvad oplader man ved en ladestander på parkeringspladsen?", "type": "choice", "options": ["Elbiler", "Cykelhjelme", "Telte", "Højttalere"], "answer": 0, "hints": ["Det er et køretøj.", "Den kører på strøm."]}, {"q": "Hvor mange hjul har 15 almindelige biler tilsammen? (skriv tallet)", "type": "text", "answers": ["60"], "hints": ["En bil har 4 hjul.", "15 × 4 = ?"]}, {"q": "Hvad kalder man den del af bilen, hvor man lægger bagagen?", "type": "choice", "options": ["Handskerum", "Bagagerum", "Motorrum", "Kabine"], "answer": 1, "hints": ["Svaret står næsten i spørgsmålet.", "Det sidder ofte bag i bilen."]}, {"q": "Hvad betyder et rundt, rødt skilt med en hvid vandret streg?", "type": "choice", "options": ["Parkering", "Indkørsel forbudt", "Fodgængerfelt", "Busstoppested"], "answer": 1, "hints": ["Her må man ikke køre ind.", "Det er et forbudsskilt."]}], "taske": [{"q": "Hvad er smart at have i tasken, hvis det begynder at regne?", "type": "choice", "options": ["Snorkel", "Regnslag", "Skøjter", "Solbriller"], "answer": 1, "hints": ["Det holder dig tør.", "Det er en slags tynd jakke af plastik."]}, {"q": "Hvorfor er glasflasker ofte forbudt på festivaler?", "type": "choice", "options": ["De smager dårligt", "De kan gå i stykker, og folk kan skære sig", "De er for dyre", "De larmer for meget"], "answer": 1, "hints": ["Tænk på bare tæer i græsset.", "Hvad sker der, når glas bliver tabt?"]}, {"q": "Hvad er en 'powerbank'?", "type": "choice", "options": ["En bank for stærke folk", "Et ekstra batteri til at lade mobilen op", "En energidrik", "En højttaler"], "answer": 1, "hints": ["'Power' betyder strøm.", "Den er god, når mobilen er ved at løbe tør."]}, {"q": "Hvilken solfaktor beskytter MEST mod solen?", "type": "choice", "options": ["6", "15", "30", "50"], "answer": 3, "hints": ["Jo højere tal, jo mere beskyttelse.", "Vælg det største tal."]}, {"q": "Hvorfor er det smart at tage en genopfyldelig vandflaske med?", "type": "choice", "options": ["Den er tung", "Man kan drikke vand og spare på plastik", "Den kan spille musik", "Den lyser i mørket"], "answer": 1, "hints": ["Tænk på miljøet.", "Man kan fylde den igen og igen."]}, {"q": "Hvad bruger man en pandelampe til?", "type": "choice", "options": ["At få lys i mørket med hænderne fri", "At lave mad", "At holde varmen", "At måle temperatur"], "answer": 0, "hints": ["Den sidder på hovedet.", "Den er god i teltet om natten."]}, {"q": "Hvor mange gram er der i et kilogram? (skriv tallet)", "type": "text", "answers": ["1000", "1.000"], "hints": ["'Kilo' betyder tusind.", "Et tal med tre nuller."]}, {"q": "Hvilken ting hører IKKE hjemme i en festivaltaske?", "type": "choice", "options": ["Regnslag", "Solcreme", "Støvsuger", "Vandflaske"], "answer": 2, "hints": ["Én af tingene skal sættes i en stikkontakt.", "Den bruger man til at gøre rent derhjemme."]}], "cykel": [{"q": "Hvor mange hjul har en tandemcykel?", "type": "text", "answers": ["2", "to"], "hints": ["På en tandem sidder to personer – men tæl hjulene.", "Den har lige så mange hjul som en almindelig cykel."]}, {"q": "Hvad skal man have tændt på cyklen, når man cykler i mørke?", "type": "choice", "options": ["Ringeklokken", "Lygter", "Kurven", "Støttebenet"], "answer": 1, "hints": ["Så andre kan se dig.", "De lyser hvidt foran og rødt bagpå."]}, {"q": "Hvad hedder Danmarks hovedstad, som er kendt som en af verdens bedste cykelbyer?", "type": "text", "answers": ["københavn", "kobenhavn", "kbh", "copenhagen"], "hints": ["Byen har Tivoli og Den Lille Havfrue.", "Den starter med K."]}, {"q": "Hvad bruger man en cykelpumpe til?", "type": "choice", "options": ["At pumpe luft i dækkene", "At smøre kæden", "At låse cyklen", "At ringe med klokken"], "answer": 0, "hints": ["Tænk på et fladt dæk.", "Den puster noget ind."]}, {"q": "I hvilken side af vejen cykler man i Danmark?", "type": "choice", "options": ["Højre", "Venstre", "I midten", "Hvor man vil"], "answer": 0, "hints": ["Det er den samme side, som bilerne kører i.", "Det er ikke venstre."]}, {"q": "Hvad kalder man det, når man rækker hånden op på cyklen for at vise, at man stopper?", "type": "choice", "options": ["Vinketegn", "Stoptegn", "High five", "Ringetegn"], "answer": 1, "hints": ["Man viser, at man vil stoppe.", "Stop + tegn."]}, {"q": "Hvad bør man have på hovedet, når man cykler?", "type": "text", "answers": ["hjelm", "cykelhjelm", "en hjelm", "en cykelhjelm"], "hints": ["Den beskytter hovedet, hvis man falder.", "Ordet rimer på 'skælm'."]}, {"q": "Hvor mange kilometer er 3.000 meter? (skriv tallet)", "type": "text", "answers": ["3", "tre", "3 km"], "hints": ["1 kilometer er 1.000 meter.", "3.000 / 1.000 = ?"]}], "pant": [{"q": "Hvor meget pant er der på en almindelig dåse sodavand (A-pant) i Danmark?", "type": "choice", "options": ["50 øre", "1 kr.", "3 kr.", "5 kr."], "answer": 1, "hints": ["Det er den mindste pantsats.", "Det er en hel krone."]}, {"q": "Hvad bliver tomme aluminiumsdåser oftest lavet om til, når de genbruges?", "type": "choice", "options": ["Brød", "Nye dåser", "Glasflasker", "Papir"], "answer": 1, "hints": ["Aluminium kan smeltes om igen og igen.", "Man laver det samme igen."]}, {"q": "Du afleverer 8 dåser med 1 kr. i pant og 2 store flasker med 3 kr. i pant. Hvor mange kroner får du?", "type": "text", "answers": ["14", "14 kr", "14 kr."], "hints": ["Dåserne giver 8 kr.", "8 + 2 × 3 = ?"]}, {"q": "Hvilket symbol viser ofte, at noget kan genbruges?", "type": "choice", "options": ["Et hjerte", "Tre pile i en trekant", "En stjerne", "Et udråbstegn"], "answer": 1, "hints": ["Det viser noget, der går rundt og rundt.", "Pilene følger efter hinanden."]}, {"q": "Hvad hedder maskinen i supermarkedet, hvor man afleverer flasker og dåser?", "type": "choice", "options": ["Pantautomat", "Kaffeautomat", "Pengeautomat", "Billetautomat"], "answer": 0, "hints": ["Man får pant tilbage.", "Pant + automat."]}, {"q": "Hvor lang tid tager det cirka, før en plastikflaske er nedbrudt i naturen?", "type": "choice", "options": ["1 uge", "1 år", "10 år", "Flere hundrede år"], "answer": 3, "hints": ["Det er meget lang tid.", "Længere end et menneskeliv."]}, {"q": "Hvordan kan man se, at der er pant på en dåse eller flaske?", "type": "choice", "options": ["Der er et pantmærke med A, B eller C", "Den er rød", "Den er tung", "Der er en smiley på"], "answer": 0, "hints": ["Det er et lille mærke på emballagen.", "Bogstavet viser, hvor meget pant der er."]}, {"q": "Du samler 25 dåser med 1 kr. i pant og giver halvdelen af pengene til velgørenhed. Hvor mange kroner beholder du?", "type": "text", "answers": ["12,50", "12.50", "12,5", "12.5", "12,50 kr"], "hints": ["Du får 25 kr. i alt.", "Halvdelen af 25 er …"]}], "camping": [{"q": "Hvad kalder man de små pinde, der holder teltet fast i jorden?", "type": "choice", "options": ["Teltstænger", "Teltpløkker", "Kroge", "Spyd"], "answer": 1, "hints": ["Man banker dem ned med en hammer.", "Ordet ender på '-pløkker'."]}, {"q": "Hvad hedder den 'pose', man sover i, når man camperer?", "type": "text", "answers": ["sovepose", "soveposen", "en sovepose"], "hints": ["Den kan lynes.", "Sove + pose."]}, {"q": "Hvilket dyr bærer sit hus på ryggen?", "type": "choice", "options": ["Snegl", "Mus", "Ræv", "Ugle"], "answer": 0, "hints": ["Den er meget langsom.", "Den elsker regnvejr og salat."]}, {"q": "I hvilken retning står solen op?", "type": "choice", "options": ["Nord", "Syd", "Øst", "Vest"], "answer": 2, "hints": ["Det er IKKE der, hvor den går ned.", "Solen står op i ø..."]}, {"q": "Hvad kalder man et telt, der næsten slår sig selv op, når man kaster det?", "type": "choice", "options": ["Pop-up-telt", "Tipi", "Pavillon", "Hængekøje"], "answer": 0, "hints": ["Det 'popper' op.", "Pop + up."]}, {"q": "Hvad bruger man et liggeunderlag til?", "type": "choice", "options": ["At ligge blødt og varmt", "At lave mad på", "At bære vand i", "At holde regnen ude"], "answer": 0, "hints": ["Det ligger under soveposen.", "Det isolerer mod den kolde jord."]}, {"q": "Der er 3 telte med plads til 4 personer i hver. Hvor mange kan sove i dem? (skriv tallet)", "type": "text", "answers": ["12", "tolv"], "hints": ["4 + 4 + 4", "3 × 4 = ?"]}, {"q": "Hvilket af disse må man IKKE gøre inde i teltet?", "type": "choice", "options": ["Sove", "Klæde om", "Tænde bål", "Læse"], "answer": 2, "hints": ["Det handler om sikkerhed.", "Teltdug kan brænde."]}], "vand": [{"q": "Hvor meget af en voksen krop består cirka af vand?", "type": "choice", "options": ["Ca. 10 %", "Ca. 30 %", "Ca. 60 %", "Ca. 90 %"], "answer": 2, "hints": ["Det er mere end halvdelen.", "Men ikke næsten det hele."]}, {"q": "Hvad hedder vand, når det er frosset til fast form?", "type": "text", "answers": ["is"], "hints": ["Man putter det i sodavand.", "To bogstaver."]}, {"q": "Ved hvor mange grader koger vand (ved havets overflade)?", "type": "text", "answers": ["100", "100 grader", "100°"], "hints": ["Det er et rundt tal.", "Det er et tal med tre cifre."]}, {"q": "Hvad er den kemiske formel for vand?", "type": "choice", "options": ["CO2", "H2O", "O2", "NaCl"], "answer": 1, "hints": ["Der er brint (H) i.", "To H'er og et O."]}, {"q": "Hvilken farve er markeringen for varmt vand ofte på en vandhane?", "type": "choice", "options": ["Rød", "Blå", "Grøn", "Gul"], "answer": 0, "hints": ["Det er samme farve som ild.", "Koldt vand er blåt."]}, {"q": "Hvad kalder man vand med bobler i?", "type": "choice", "options": ["Isvand", "Danskvand", "Saltvand", "Regnvand"], "answer": 1, "hints": ["Det er opkaldt efter et land.", "Danmark …"]}, {"q": "Ved hvor mange grader fryser vand til is?", "type": "text", "answers": ["0", "nul", "0 grader", "0°"], "hints": ["Det er det laveste 'runde' tal.", "Hverken plus eller minus."]}, {"q": "Hvor meget vand bør en voksen cirka drikke om dagen – især på en varm festivaldag?", "type": "choice", "options": ["Et halvt glas", "1,5–2 liter", "10 liter", "20 liter"], "answer": 1, "hints": ["Det er mere end et glas.", "Cirka en stor sodavandsflaske."]}], "mad": [{"q": "Hvilket land kommer pizza oprindeligt fra?", "type": "choice", "options": ["USA", "Italien", "Frankrig", "Tyrkiet"], "answer": 1, "hints": ["Landet ligner en støvle på kortet.", "Hovedstaden er Rom."]}, {"q": "Hvad bliver pommes frites lavet af?", "type": "choice", "options": ["Gulerødder", "Kartofler", "Majs", "Ris"], "answer": 1, "hints": ["Det vokser under jorden.", "Man kan også lave mos af det."]}, {"q": "Hvilken ret blev i 2014 stemt ind som Danmarks nationalret?", "type": "choice", "options": ["Frikadeller", "Smørrebrød", "Stegt flæsk med persillesovs", "Æbleskiver"], "answer": 2, "hints": ["Den er sprød og serveres med kartofler.", "Sovsen er grøn af en krydderurt."]}, {"q": "Hvad er hovedingrediensen i guacamole?", "type": "choice", "options": ["Avocado", "Tomat", "Agurk", "Ærter"], "answer": 0, "hints": ["Den er grøn indeni og har en stor sten.", "Den starter med A."]}, {"q": "En burger koster 75 kr. og en sodavand 25 kr. Hvad koster 2 burgere og 2 sodavand?", "type": "text", "answers": ["200", "200 kr", "200 kr."], "hints": ["Én burger og én sodavand koster 100 kr.", "Det skal ganges med 2."]}, {"q": "Hvilken frugt er gul, bøjet og meget populær hos aber?", "type": "text", "answers": ["banan", "bananer", "en banan"], "hints": ["Man skræller den.", "B-a-n-..."]}, {"q": "Hvad er hovedingrediensen i hummus?", "type": "choice", "options": ["Ris", "Kikærter", "Kartofler", "Æg"], "answer": 1, "hints": ["Det er en slags bælgfrugt.", "Den hedder også garbanzobønne."]}, {"q": "Hvilket land er kendt for tacos?", "type": "choice", "options": ["Mexico", "Japan", "Norge", "Grækenland"], "answer": 0, "hints": ["Landet ligger syd for USA.", "Hovedstaden hedder det samme som landet + 'City'."]}, {"q": "En pølsevogn sælger 120 hotdogs i timen. Hvor mange sælger den på 5 timer? (skriv tallet)", "type": "text", "answers": ["600"], "hints": ["100 hotdogs på 5 timer er 500.", "120 × 5 = ?"]}, {"q": "Hvad kalder man en person, der ikke spiser kød?", "type": "text", "answers": ["vegetar", "vegetarianer", "en vegetar", "en vegetarianer", "veganer"], "hints": ["Personen spiser grøntsager.", "Ordet starter med 'Veg-'."]}], "merch": [{"q": "Hvad er 'merch' en forkortelse for?", "type": "choice", "options": ["Merchandise", "Merci", "Mercedes", "Mermaid"], "answer": 0, "hints": ["Det er de ting, bandet sælger.", "Det betyder 'varer'."]}, {"q": "En T-shirt koster 200 kr., men er sat 25 % ned. Hvad koster den nu?", "type": "text", "answers": ["150", "150 kr", "150 kr."], "hints": ["25 % er det samme som en fjerdedel.", "En fjerdedel af 200 er 50."]}, {"q": "Hvilken T-shirt-størrelse er størst?", "type": "choice", "options": ["S", "M", "L", "XL"], "answer": 3, "hints": ["S = small, L = large.", "X betyder 'ekstra'."]}, {"q": "Hvad kalder man listen over alle bands, der spiller på en festival?", "type": "choice", "options": ["Setlisten", "Line-uppen (programmet)", "Soundchecket", "Backstage"], "answer": 1, "hints": ["Den står ofte på festivalplakaten.", "Bandsene står 'på linje'."]}, {"q": "Hvad kalder man en trøje med hætte?", "type": "text", "answers": ["hættetrøje", "haettetrøje", "hoodie", "hættetrøjen", "en hættetrøje"], "hints": ["På engelsk hedder den en 'hoodie'.", "Hætte + trøje."]}, {"q": "Hvilken farve får man, hvis man blander blå og gul?", "type": "choice", "options": ["Lilla", "Orange", "Grøn", "Brun"], "answer": 2, "hints": ["Samme farve som græs.", "Samme farve som bladene på træerne om sommeren."]}, {"q": "Hvad kalder man den teknik, hvor man binder stof sammen og farver det i farverige spiraler?", "type": "choice", "options": ["Tie-dye", "Strikning", "Hækling", "Broderi"], "answer": 0, "hints": ["Det er engelsk.", "'Tie' betyder at binde."]}, {"q": "3 T-shirts koster 450 kr. Hvad koster én? (skriv tallet)", "type": "text", "answers": ["150", "150 kr", "150 kr."], "hints": ["Del prisen med 3.", "450 / 3 = ?"]}, {"q": "Hvad er en kasket?", "type": "choice", "options": ["En hovedbeklædning med skygge", "En taske", "Et armbånd", "En jakke"], "answer": 0, "hints": ["Den sidder på hovedet.", "Den skygger for solen."]}, {"q": "Hvad kalder man en lille figur med en nål, som man sætter på jakken eller tasken?", "type": "choice", "options": ["En lynlås", "En pin (et emblem)", "En knap", "Et spænde"], "answer": 1, "hints": ["Den har en nål bagpå.", "På engelsk: badge eller pin."]}], "bar": [{"q": "Hvilken frugt laves lemonade traditionelt af?", "type": "choice", "options": ["Appelsin", "Citron", "Æble", "Jordbær"], "answer": 1, "hints": ["Den er gul og sur.", "'Lemon' på engelsk."]}, {"q": "Hvad er en 'mocktail'?", "type": "choice", "options": ["En drink uden alkohol", "En slags kage", "En dans", "En sodavandsautomat"], "answer": 0, "hints": ["'Mock' betyder 'lade som om'.", "Den ligner en cocktail, men..."]}, {"q": "Hvad laves hyldeblomstsaft af?", "type": "choice", "options": ["Æbler", "Blomster fra hyldebusken", "Rabarber", "Citroner"], "answer": 1, "hints": ["Svaret står næsten i navnet.", "Det er hvide skærme, som plukkes i juni."]}, {"q": "Hvor mange centiliter er der i én liter?", "type": "text", "answers": ["100"], "hints": ["'Centi' betyder en hundrededel.", "Det er et rundt tal."]}, {"q": "Hvilken gas giver boblerne i sodavand?", "type": "choice", "options": ["Ilt", "Kuldioxid (CO2)", "Helium", "Brint"], "answer": 1, "hints": ["Det er den samme gas, vi ånder ud.", "Den kemiske formel er CO2."]}, {"q": "Hvad kalder man en person, der laver drinks bag en bar?", "type": "text", "answers": ["bartender", "bartenderen", "en bartender", "tjener"], "hints": ["Ordet starter med 'bar'.", "Bar + ten + der."]}, {"q": "Hvilken frugt laver man den orange juice af, som er fuld af C-vitamin?", "type": "choice", "options": ["Banan", "Appelsin", "Pære", "Blåbær"], "answer": 1, "hints": ["Frugten har samme navn som farven på engelsk.", "Den skrælles og deles i både."]}, {"q": "Hvad er en smoothie?", "type": "choice", "options": ["En drik af blendet frugt", "En slags is på pind", "En varm suppe", "En sodavand med bobler"], "answer": 0, "hints": ["Den laves i en blender.", "Den er tyk og cremet."]}, {"q": "Et glas saft koster 15 kr. Hvad koster 4 glas? (skriv tallet)", "type": "text", "answers": ["60", "60 kr", "60 kr."], "hints": ["2 glas koster 30 kr.", "15 × 4 = ?"]}, {"q": "Hvilket sugerør er bedst for miljøet?", "type": "choice", "options": ["Et engangssugerør af plastik", "Et genbrugssugerør, fx af metal", "To plastiksugerør", "Intet af dem"], "answer": 1, "hints": ["Det kan bruges igen og igen.", "Det skal ikke smides ud efter brug."]}], "telt": [{"q": "Hvor mange strenge har en almindelig guitar?", "type": "text", "answers": ["6", "seks"], "hints": ["Det er flere end 4, som en bas har.", "Det er det samme tal som sider på en terning."]}, {"q": "Hvilket instrument har sorte og hvide tangenter?", "type": "choice", "options": ["Trompet", "Klaver", "Violin", "Fløjte"], "answer": 1, "hints": ["Man spiller på det med alle ti fingre.", "Det kaldes også et piano."]}, {"q": "Hvad kalder man den person, der står forrest og synger i et band?", "type": "choice", "options": ["Trommeslager", "Forsanger", "Lydmand", "Roadie"], "answer": 1, "hints": ["Personen står ved mikrofonen.", "Personen står 'for' bandet og synger."]}, {"q": "Hvad hedder det instrument, der består af stortromme, lilletromme og bækkener?", "type": "choice", "options": ["Trommesæt", "Xylofon", "Harmonika", "Tuba"], "answer": 0, "hints": ["Man spiller på det med stikker.", "Trommer + sæt."]}, {"q": "Hvad hedder den ekstra sang, et band spiller, når publikum råber på mere?", "type": "choice", "options": ["Ekstranummer", "Soundcheck", "Intro", "Pause"], "answer": 0, "hints": ["På engelsk hedder det 'encore'.", "Det er et 'ekstra' nummer."]}, {"q": "Hvor mange medlemmer var der i The Beatles?", "type": "text", "answers": ["4", "fire"], "hints": ["John, Paul, George og ...", "Ringo var den sidste."]}, {"q": "Hvilket messinginstrument blæser man i og har tre ventiler?", "type": "choice", "options": ["Trompet", "Violin", "Tromme", "Harpe"], "answer": 0, "hints": ["Det er ofte med i et brassband.", "Det lyder højt og klart, når der skal fanfare."]}, {"q": "Hvor mange tangenter har et almindeligt klaver?", "type": "choice", "options": ["52", "66", "88", "100"], "answer": 2, "hints": ["Det er mellem 80 og 90.", "To ens cifre."]}, {"q": "Hvad kalder man personen, der styrer lyden ved mixerpulten under en koncert?", "type": "choice", "options": ["Lydteknikeren", "Forsangeren", "Dirigenten", "Billetkontrolløren"], "answer": 0, "hints": ["Personen står midt i publikum ved en stor pult.", "Personen arbejder med lyd."]}, {"q": "Hvilket dansk-norsk band sang 'Barbie Girl'?", "type": "choice", "options": ["Aqua", "Gasolin'", "TV-2", "Lukas Graham"], "answer": 0, "hints": ["Bandets navn betyder 'vand' på latin.", "Navnet starter med A."]}], "info": [{"q": "Hvilket nummer ringer man til i Danmark, hvis der sker en alvorlig ulykke?", "type": "text", "answers": ["112", "1-1-2", "1 1 2"], "hints": ["Det er tre cifre.", "1-1-..."]}, {"q": "Hvad er det bedste at gøre, hvis man bliver væk fra sine venner på festivalen?", "type": "choice", "options": ["Gå hjem", "Gå til info-teltet eller jeres aftalte mødested", "Kravle op på scenen", "Gemme sig i et telt"], "answer": 1, "hints": ["Der er et sted, hvor de voksne kan hjælpe.", "Du står lige ved det."]}, {"q": "Hvad står HLR for?", "type": "choice", "options": ["Hurtig Lyd og Rytme", "Hjerte-Lunge-Redning", "Høj Lyd Regler", "Hjælp Langs Ruten"], "answer": 1, "hints": ["Det er førstehjælp.", "To organer i brystet + det at redde nogen."]}, {"q": "Hvad kan man bruge til at beskytte ørerne mod høj musik?", "type": "choice", "options": ["Ørepropper", "Solbriller", "Handsker", "Plaster"], "answer": 0, "hints": ["Man putter dem i ørerne.", "Øre + propper."]}, {"q": "Hvad er en hjertestarter?", "type": "choice", "options": ["En sang", "En maskine, der kan give et stød til et hjerte, der er gået i stå", "En energidrik", "Den første koncert på festivalen"], "answer": 1, "hints": ["Den hænger tit i et grønt skab.", "Den hjælper, når nogen falder om."]}, {"q": "Hvilket symbol bruger Røde Kors?", "type": "choice", "options": ["En grøn stjerne", "Et rødt kors på hvid baggrund", "En blå cirkel", "Et gult hjerte"], "answer": 1, "hints": ["Svaret står i navnet.", "Rødt + kors."]}, {"q": "Hvad skal man gøre, hvis man ser nogen, der er kommet til skade?", "type": "choice", "options": ["Gå videre", "Sige det til en voksen eller vagt – eller ringe 112", "Tage et billede", "Vente til i morgen"], "answer": 1, "hints": ["Der skal hentes hjælp.", "Jo hurtigere, jo bedre."]}, {"q": "Hvad er 'stabilt sideleje'?", "type": "choice", "options": ["En måde at lægge en bevidstløs person, der trækker vejret", "En sovestilling i teltet", "En dans", "En ny type liggeunderlag"], "answer": 0, "hints": ["Det er førstehjælp.", "Personen lægges om på siden."]}, {"q": "Hvad er vigtigt at gøre på en varm festivaldag?", "type": "choice", "options": ["Drikke vand og bruge solcreme", "Løbe rundt uden pause", "Have vinterjakke på", "Kun drikke sodavand"], "answer": 0, "hints": ["Tænk på solen.", "Kroppen skal have væske."]}, {"q": "Hvad er smart at aftale med sine venner, før festivalen starter?", "type": "choice", "options": ["Et mødested, hvis man bliver væk fra hinanden", "Hvem der løber hurtigst", "Hvem der har den største taske", "Ingenting"], "answer": 0, "hints": ["Det er godt, hvis man mister hinanden.", "Et sted, man kan finde hinanden igen."]}], "toilet": [{"q": "Der står 18 personer i toiletkøen. Der er 3 toiletter, og hvert besøg tager 2 minutter. Hvor mange minutter går der, før køen er væk?", "type": "text", "answers": ["12", "12 min", "12 minutter"], "hints": ["Hvert toilet skal klare 18 / 3 = 6 personer.", "6 personer × 2 minutter = ?"]}, {"q": "Hvad er 'WC' en forkortelse for?", "type": "choice", "options": ["Water Closet", "Wild Camping", "World Cup", "Wet Chair"], "answer": 0, "hints": ["Det er engelsk.", "Det har med vand at gøre."]}, {"q": "Hvor længe skal man mindst vaske hænder for at få dem rigtig rene?", "type": "choice", "options": ["2 sekunder", "Ca. 20 sekunder", "5 minutter", "1 time"], "answer": 1, "hints": ["Det tager lige så lang tid som at synge 'I dag er det ...' to gange.", "Mere end et øjeblik, men under et minut."]}, {"q": "Hvorfor skal man vaske hænder efter toiletbesøg?", "type": "choice", "options": ["For at fjerne bakterier", "For at få varme hænder", "Fordi sæben dufter godt", "Det skal man ikke"], "answer": 0, "hints": ["Det handler om at undgå at blive syg.", "Små usynlige ting..."]}, {"q": "Hvilket af disse ord kan læses både forfra og bagfra?", "type": "choice", "options": ["Toilet", "Telt", "Kajak", "Scene"], "answer": 2, "hints": ["Prøv at stave ordene baglæns.", "Det er en slags båd."]}, {"q": "Hvad kalder man papiret på rullen ved siden af toilettet?", "type": "text", "answers": ["toiletpapir", "toiletpapiret", "wc-papir", "wc papir"], "hints": ["Det er papir til toilettet.", "Toilet + papir."]}, {"q": "Hvorfor står der ofte håndsprit ved festivaltoiletterne?", "type": "choice", "options": ["For at dræbe bakterier, når der ikke er vand", "Fordi det dufter godt", "For at holde varmen", "Til at rense skoene"], "answer": 0, "hints": ["Det handler om hygiejne.", "Der er ikke altid en vandhane."]}, {"q": "Der er 40 toiletter og 1.000 gæster. Hvor mange gæster er der pr. toilet? (skriv tallet)", "type": "text", "answers": ["25"], "hints": ["Del antallet af gæster med antallet af toiletter.", "1.000 / 40 = ?"]}, {"q": "Hvilken forkortelse betyder det samme som toilet?", "type": "choice", "options": ["WC", "DJ", "TV", "PC"], "answer": 0, "hints": ["Den står ofte på døren.", "Water closet."]}, {"q": "Hvad bør man gøre, når man har været på toilettet?", "type": "choice", "options": ["Vaske eller spritte hænder", "Løbe direkte til madboden", "Ingenting", "Klappe i hænderne"], "answer": 0, "hints": ["Det handler om at holde sig rask.", "Sæbe eller sprit."]}], "finale": [{"q": "Hvad kalder man området bag scenen, hvor musikerne gør sig klar?", "type": "choice", "options": ["Backstage", "Frontstage", "Garderoben", "Moshpit"], "answer": 0, "hints": ["Det er engelsk.", "'Back' betyder bag."]}, {"q": "Hvad kalder man det, når bandet tester lyden inden koncerten?", "type": "choice", "options": ["Soundcheck", "Encore", "Playback", "Remix"], "answer": 0, "hints": ["'Sound' betyder lyd.", "Man 'checker' lyden."]}, {"q": "Hvad kalder man festivalens største navn, som ofte spiller sidst?", "type": "choice", "options": ["Opvarmningen", "Hovednavnet", "Roadien", "DJ'en"], "answer": 1, "hints": ["På engelsk: 'headliner'.", "Det står øverst på plakaten."]}, {"q": "Hvad hedder listen over de sange, et band skal spille til en koncert?", "type": "choice", "options": ["Line-up", "Setliste", "Indkøbsliste", "Playliste"], "answer": 1, "hints": ["Den ligger tit tapet fast på scenegulvet.", "Ordet starter med 'Set-'."]}, {"q": "Hvad kalder man det, når publikum bærer en person hen over hovederne?", "type": "choice", "options": ["Crowdsurfing", "Stagediving", "Headbanging", "Moonwalk"], "answer": 0, "hints": ["Det ligner noget, man gør på bølger.", "Crowd + surfing."]}, {"q": "Hvad kalder man det band, der spiller FØR hovednavnet for at få publikum i gang?", "type": "choice", "options": ["Opvarmningsbandet", "Coverbandet", "Pausebandet", "Garagebandet"], "answer": 0, "hints": ["De gør publikum 'varme'.", "Opvarm..."]}, {"q": "Hvad kalder man de lamper over scenen, der kan bevæge sig og dreje rundt?", "type": "choice", "options": ["Moving heads", "Lysestager", "Lommelygter", "Gadelamper"], "answer": 0, "hints": ["Navnet er engelsk.", "'Moving' betyder bevægelige."]}, {"q": "Hvad kalder man det, når hele publikum synger med på omkvædet?", "type": "choice", "options": ["Fællessang", "Soundcheck", "Playback", "Encore"], "answer": 0, "hints": ["Alle gør det sammen.", "Fælles + sang."]}, {"q": "Hvad kalder man det store højttaleranlæg, der får musikken ud til publikum?", "type": "choice", "options": ["PA-anlæg", "Walkie-talkie", "Hovedtelefoner", "Babyalarm"], "answer": 0, "hints": ["Det er to bogstaver + 'anlæg'.", "P og A."]}, {"q": "Hvad kalder man en sang, som næsten alle kender og glæder sig til at høre?", "type": "choice", "options": ["Et hit", "En B-side", "En intro", "En demo"], "answer": 0, "hints": ["Den 'rammer' rigtig mange.", "Ordet har tre bogstaver."]}]};
 // Delt verdensdefinition – bruges af både server og browser.
 // Kortet kan redigeres direkte. Tegnforklaring:
@@ -814,7 +826,7 @@ const ENGINE = (() => {
   function publicMedia() {
     const m = FEST.music || {}, b = FEST.band || {};
     return {
-      music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8 },
+      music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8, finaleVideo: m.finaleVideo || null, noVideoProbe: !!m.noVideoProbe },
       band: { members: Array.isArray(b.members) ? b.members.slice(0, 6) : [], image: b.image || null },
     };
   }
@@ -1253,6 +1265,7 @@ function connect() {
     G.helps = new Map(d.help.map((h) => [h.rid, h]));
     for (const h of d.help) if (h.pid === G.pid) G.myHelpRid[h.post] = h.rid;
     renderChat(); renderHelps(); renderPoster(); updateHud();
+    setTimeout(() => preloadFinaleVideo(), 4000); // når spillet er kommet i gang
     if (d.finale && !G.finale) {
       // Finalen er allerede i gang (fx genindlæst side): vis showet, hvis denne fane ikke har set det
       G.finale = d.finale;
@@ -2275,6 +2288,167 @@ function buildBand() {
     return [...left.map(fig), '<div class="bm-gap"></div>', ...right.map((m, i) => fig(m, i + left.length))].join('');
   }
 }
+// ---- Finalevideo i stedet for bandet ----
+// 1) music.finaleVideo i festival.json (YouTube-link eller fil)  2) media/finale-video.mp4|webm|mov|m4v
+// 3) ellers bandet og finale-musikken. Kan videoen ikke afspilles, falder vi tilbage til bandet.
+const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v'];
+let videoSourceP = null;
+function youtubeId(url) {
+  const m = String(url).match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+function finaleVideoSource() {
+  if (videoSourceP) return videoSourceP;
+  const m = musicCfg();
+  videoSourceP = (async () => {
+    if (m.finaleVideo) {
+      const id = youtubeId(m.finaleVideo);
+      return id ? { type: 'youtube', id } : { type: 'file', src: m.finaleVideo };
+    }
+    // Pages-bygget oplyser, hvilke filer der ligger i media/ – så skal vi ikke gætte
+    if (Array.isArray(window.__MEDIA_FILES__)) {
+      const f = VIDEO_EXT.map((ext) => `finale-video.${ext}`).find((n) => window.__MEDIA_FILES__.includes(n));
+      return f ? { type: 'file', src: `media/${f}` } : null;
+    }
+    if (m.noVideoProbe) return null;
+    for (const ext of VIDEO_EXT) {
+      const src = `media/finale-video.${ext}`;
+      try {
+        const res = await fetch(src, { method: 'HEAD', cache: 'no-cache' });
+        if (res.ok && !/json|html/.test(res.headers.get('content-type') || '')) return { type: 'file', src };
+      } catch { /* ingen fil */ }
+    }
+    return null;
+  })();
+  return videoSourceP;
+}
+function videoElement(src) {
+  const box = $('povVideo');
+  let el = box.querySelector('video');
+  if (!el) {
+    el = document.createElement('video');
+    el.playsInline = true; el.loop = true; el.preload = 'auto';
+    el.setAttribute('playsinline', '');
+    el.src = PRELOAD.url || src;
+    box.replaceChildren(el);
+  } else if (PRELOAD.url && el.src !== PRELOAD.url && el.paused) {
+    el.src = PRELOAD.url; // den færdighentede kopi er klar – brug den
+  }
+  el.muted = MUSIC.muted;
+  return el;
+}
+
+// ---- Hent finalevideoen i baggrunden, mens spillet foregår ----
+// Hele filen hentes med lav prioritet og gemmes i hukommelsen, så den starter med det samme i finalen.
+// Meget store filer (eller "spar data" på mobilen) bufferes i stedet af browseren fra starten af filen.
+const PRELOAD = { state: 'idle', bytes: 0, total: 0, url: null };
+const PRELOAD_MAX_MB = (() => { try { return matchMedia('(pointer: coarse)').matches ? 150 : 400; } catch { return 150; } })();
+function updatePreloadText() {
+  const el = $('preloadText');
+  if (!el) return;
+  const mb = (n) => (n / 1e6).toFixed(n < 1e7 ? 1 : 0);
+  const txt = {
+    loading: PRELOAD.total ? `🎬 Finale-overraskelsen hentes: ${Math.floor((PRELOAD.bytes / PRELOAD.total) * 100)} % (${mb(PRELOAD.bytes)} af ${mb(PRELOAD.total)} MB)` : `🎬 Finale-overraskelsen hentes: ${mb(PRELOAD.bytes)} MB`,
+    ready: '🎬 Finale-overraskelsen er klar',
+    stream: '🎬 Finale-overraskelsen gøres klar af browseren',
+  }[PRELOAD.state];
+  el.textContent = txt || '';
+  el.hidden = !txt;
+}
+async function preloadFinaleVideo() {
+  if (PRELOAD.state !== 'idle') return;
+  PRELOAD.state = 'checking';
+  const v = await finaleVideoSource();
+  if (!v || G.finale) { PRELOAD.state = 'none'; return; }
+  if (v.type === 'youtube') {
+    for (const host of ['https://www.youtube-nocookie.com', 'https://i.ytimg.com', 'https://www.google.com']) {
+      const l = document.createElement('link'); l.rel = 'preconnect'; l.href = host; document.head.appendChild(l);
+    }
+    PRELOAD.state = 'youtube';
+    return;
+  }
+  const stream = () => { PRELOAD.state = 'stream'; videoElement(v.src); updatePreloadText(); };
+  try {
+    if (navigator.connection?.saveData) return stream();
+    const res = await fetch(v.src, { priority: 'low' });
+    if (!res.ok || !res.body) return stream();
+    PRELOAD.total = Number(res.headers.get('content-length')) || 0;
+    if (PRELOAD.total > PRELOAD_MAX_MB * 1e6) { res.body.cancel().catch(() => {}); return stream(); }
+    PRELOAD.state = 'loading';
+    const reader = res.body.getReader(), chunks = [];
+    let lastUi = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      PRELOAD.bytes += value.length;
+      if (PRELOAD.bytes > PRELOAD_MAX_MB * 1e6) { reader.cancel().catch(() => {}); return stream(); }
+      if (performance.now() - lastUi > 500) { lastUi = performance.now(); updatePreloadText(); }
+    }
+    const blob = new Blob(chunks, { type: res.headers.get('content-type') || 'video/mp4' });
+    PRELOAD.url = URL.createObjectURL(blob);
+    PRELOAD.state = 'ready';
+    updatePreloadText();
+    const el = $('povVideo').querySelector('video');
+    if (el && el.paused) el.src = PRELOAD.url;
+  } catch (e) {
+    console.warn('Kunne ikke forudhente finalevideoen – den streames i stedet', e);
+    stream();
+  }
+}
+// Videoen placeres lige under hovednavnet, så navnet altid kan ses
+function placeVideo() {
+  const box = $('povVideo'), stage = $('povStage').getBoundingClientRect(), head = $('povHead').getBoundingClientRect();
+  if (!stage.height || !head.height) return;
+  const top = Math.max(stage.height * 0.2, head.bottom - stage.top + stage.height * 0.03);
+  box.style.top = `${(top / stage.height) * 100}%`;
+}
+addEventListener('resize', () => { if (POV.video) requestAnimationFrame(placeVideo); });
+function showVideo(v) {
+  const box = $('povVideo');
+  $('pov').classList.add('band-on', 'video-on');
+  fitPovText();
+  placeVideo();
+  POV.lasers = false; POV.video = true;
+  if (v.type === 'youtube') {
+    const q = new URLSearchParams({ autoplay: '1', loop: '1', playlist: v.id, controls: '1', modestbranding: '1', rel: '0', playsinline: '1', enablejsapi: '1', mute: MUSIC.muted ? '1' : '0' });
+    box.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(v.id)}?${q}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="Finalevideo"></iframe>`;
+    MUSIC.video = { type: 'youtube', el: box.querySelector('iframe') };
+  } else {
+    const el = videoElement(PRELOAD.url || v.src);
+    MUSIC.video = { type: 'file', el };
+    el.addEventListener('error', videoFailed, { once: true });
+    el.currentTime = 0;
+    el.play().catch((e) => {
+      if (e && e.name === 'NotAllowedError') el.controls = true; // browseren vil have et tryk – vis afspilknap
+      else videoFailed();
+    });
+  }
+  box.classList.add('on');
+}
+function videoFailed() {
+  if (!MUSIC.video || MUSIC.video.failed) return;
+  console.warn('Finalevideoen kunne ikke afspilles – viser bandet i stedet');
+  MUSIC.video.failed = true;
+  stopVideo();
+  $('pov').classList.remove('video-on');
+  POV.video = false; POV.lasers = true;
+  bandOn();
+}
+function stopVideo() {
+  const v = MUSIC.video;
+  if (!v) return;
+  if (v.type === 'file') { try { v.el.pause(); } catch {} }
+  else v.el?.remove();
+  $('povVideo').classList.remove('on');
+  MUSIC.video = null;
+}
+// Bandet – eller videoen – går på scenen
+async function stageShow() {
+  const v = await Promise.race([finaleVideoSource(), sleep(2500).then(() => null)]);
+  if (v) showVideo(v); else bandOn();
+}
+
 function bandOn() {
   $('pov').classList.add('band-on');
   $('povBand').classList.add('on');
@@ -2337,7 +2511,7 @@ function povFxLoop() {
       for (let i = 0; i < 6; i++) {
         const x = r.left + r.width * (0.1 + i * 0.16);
         const ang = Math.sin(sec * (0.9 + i * 0.13) + i) * 0.7;
-        cone(x, roofY, ang, Hh * 1.1, 90, cols[(i + Math.floor(sec / 2)) % cols.length], 0.33);
+        cone(x, roofY, ang, Hh * 1.1, 90, cols[(i + Math.floor(sec / 2)) % cols.length], POV.video ? 0.1 : 0.33);
       }
       if (POV.lasers) {
         c.lineWidth = 2;
@@ -2408,7 +2582,9 @@ function startFinale(d) {
   $('povActions').classList.remove('on');
   $('povSkip').hidden = false;
   fitPovText();
-  POV.active = true; POV.mode = 'house'; POV.lasers = false; POV.conf = []; POV.t0 = performance.now();
+  POV.active = true; POV.mode = 'house'; POV.lasers = false; POV.video = false; POV.conf = []; POV.t0 = performance.now();
+  $('povVideo').classList.remove('on');
+  finaleVideoSource().then((v) => { if (v && v.type === 'file') videoElement(v.src); }); // forudindlæs
   povFxLoop();
   updateHud();
 
@@ -2424,10 +2600,13 @@ function startFinale(d) {
     $('povActions').classList.add('on');
     $('povSkip').hidden = true;
     murmurStop(0.5);
-    bandOn();
+    stageShow();
   };
   $('povSkip').onclick = () => { POV.run++; showAll(); };
-  $('povClose').onclick = () => { $('pov').classList.add('hidden'); POV.active = false; burst(25, 5, 80); };
+  $('povClose').onclick = () => {
+    $('pov').classList.add('hidden'); POV.active = false; burst(25, 5, 80);
+    if (MUSIC.video) { stopVideo(); startFinaleTrack(); } // tilbage på pladsen: musikken spiller fra scenen
+  };
   $('povMute').onclick = toggleMute;
   $('povPoster').onclick = () => { renderPoster(); openModal('posterModal'); };
 
@@ -2475,9 +2654,9 @@ function startFinale(d) {
       await sleep(i ? 260 : 1400); if (!alive()) return;
       el.classList.add('on');
     }
-    // Bandet går på scenen, og musikken starter
+    // Bandet (eller finalevideoen) går på scenen, og musikken starter
     await sleep(1600); if (!alive()) return;
-    bandOn();
+    await stageShow(); if (!alive()) return;
     boom(0.8); povFlash(); povConfetti(120);
     await sleep(2200); if (!alive()) return;
     $('povMsg').textContent = d.message || '';
@@ -2552,12 +2731,12 @@ function setTrackLevel(a, vol, pan = 0, lpHz = 20000, smooth = 0.25) {
 // Jo tættere på hovedscenen, jo højere og klarere; langt væk er den svag og dump.
 // Retningen høres i stereo (scenen til venstre = lyd mest fra venstre).
 const SOUND_SOURCE = { x: STAGE.x + STAGE.w / 2, y: STAGE.crowd.y + 2 }; // midt foran scenen
-const SOUND_NEAR = 5, SOUND_FAR = 38, SOUND_MIN = 0.1;
+const SOUND_NEAR = 5, SOUND_FAR = 36, SOUND_MIN = 0.03, SOUND_CURVE = 2.2;
 function stageSoundAt(x, y) {
   const dx = SOUND_SOURCE.x - x, dy = SOUND_SOURCE.y - y;
   const d = Math.hypot(dx, dy);
   const t = Math.max(0, Math.min(1, (d - SOUND_NEAR) / (SOUND_FAR - SOUND_NEAR)));
-  const near = Math.pow(1 - t, 1.6);
+  const near = Math.pow(1 - t, SOUND_CURVE); // højere tal = hurtigere fald med afstanden
   return {
     d,
     mul: SOUND_MIN + (1 - SOUND_MIN) * near,
@@ -2618,6 +2797,10 @@ function toggleMute() {
   MUSIC.muted = !MUSIC.muted;
   try { localStorage.setItem('festival:muted', MUSIC.muted ? '1' : '0'); } catch {}
   for (const a of [MUSIC.bg, MUSIC.fin]) if (a) a.muted = MUSIC.muted;
+  if (MUSIC.video?.type === 'file') MUSIC.video.el.muted = MUSIC.muted;
+  if (MUSIC.video?.type === 'youtube') {
+    try { MUSIC.video.el.contentWindow.postMessage(JSON.stringify({ event: 'command', func: MUSIC.muted ? 'mute' : 'unMute', args: [] }), '*'); } catch {}
+  }
   if (AC && MASTER) MASTER.gain.value = MUSIC.muted ? 0 : 1;
   updateMuteButtons();
   if (!MUSIC.muted) unlockMusic();

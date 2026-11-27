@@ -48,10 +48,17 @@ for (const f of [FESTIVAL_FILE, QUESTIONS_FILE]) {
 }
 
 // Musik og band til browseren (ikke hemmeligt)
+// media/finale-video.(mp4|webm|mov|m4v) bruges automatisk, hvis den findes og finaleVideo ikke er sat
+function autoFinaleVideo() {
+  for (const ext of ['mp4', 'webm', 'mov', 'm4v']) {
+    if (fs.existsSync(path.join(MEDIA_DIR, `finale-video.${ext}`))) return `media/finale-video.${ext}`;
+  }
+  return null;
+}
 function publicMedia() {
   const m = FESTIVAL.music || {}, b = FESTIVAL.band || {};
   return {
-    music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8 },
+    music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8, finaleVideo: m.finaleVideo || autoFinaleVideo(), noVideoProbe: true },
     band: { members: Array.isArray(b.members) ? b.members.slice(0, 6) : [], image: b.image || null },
   };
 }
@@ -348,7 +355,7 @@ function authPlayer(s, body) {
 }
 
 // Musik og billeder fra media-mappen (med Range-understøttelse, så lyd kan spoles og loope i alle browsere)
-const MEDIA_MIME = { '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
+const MEDIA_MIME = { '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.m4v': 'video/x-m4v', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
 function serveMedia(req, res, rel) {
   const file = path.normalize(path.join(MEDIA_DIR, rel));
   if (!file.startsWith(MEDIA_DIR + path.sep)) return json(res, 403, { error: 'Nej' });

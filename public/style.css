@@ -333,3 +333,13 @@ label input { margin-top: 6px; font-weight: 400; }
 @media (prefers-reduced-motion: reduce) {
   .pov-band .bm, .pov-band svg .bf-strum, .pov-band svg .bf-wave, .pov-band svg .bf-stick-l, .pov-band svg .bf-stick-r, .pov-band .pov-band-img { animation: none; }
 }
+
+/* ---------- Finalevideo på LED-væggen ---------- */
+.pov-video { position: absolute; left: 6%; right: 6%; top: 26%; bottom: 11%; z-index: 2; display: flex; align-items: center; justify-content: center; container-type: size; opacity: 0; transform: scale(0.92); transition: opacity 0.8s, transform 0.8s; pointer-events: none; }
+.pov-video.on { opacity: 1; transform: none; pointer-events: auto; }
+.pov-video video, .pov-video iframe { border: 0; border-radius: 6px; box-shadow: 0 0 30px rgba(255,79,139,0.45), 0 0 80px rgba(123,47,247,0.35); }
+/* video: behold eget format inden for feltet */
+.pov-video video { width: auto; height: auto; max-width: 100%; max-height: 100%; }
+/* YouTube: 16:9, så stort som feltet tillader */
+.pov-video iframe { width: min(100cqw, 100cqh * 16 / 9); height: min(100cqh, 100cqw * 9 / 16); background: #000; }
+.pov.video-on .pov-band { display: none; }

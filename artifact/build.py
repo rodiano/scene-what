@@ -70,7 +70,7 @@ game += '''
 js_json = lambda o: json.dumps(o, ensure_ascii=False).replace('<', '\\u003c')
 # artifact-versionen kan ikke have musikfiler med – den bruger den indbyggede syntetiske lyd
 fest_art = dict(fest)
-fest_art['music'] = {'background': None, 'finale': None}
+fest_art['music'] = {'background': None, 'finale': None, 'finaleVideo': None, 'noVideoProbe': True}
 fest_art['band'] = {**(fest.get('band') or {}), 'image': None}
 out = f"""<title>Festivalspillet</title>
 <script>window.__NO_LINK__ = true;</script>
@@ -101,7 +101,8 @@ if len(sys.argv) >= 3 and sys.argv[1] == '--pages':
     site = pathlib.Path(sys.argv[2]).resolve(); site.mkdir(parents=True, exist_ok=True)
     peer = (R/'artifact/peer-room.js').read_text() + '\n' + (R/'artifact/mqtt-room.js').read_text()
     qrlib = (R/'public/vendor/qrcode.js').read_text()
-    script = f"""<script>window.__PAGES__ = true;</script>
+    media_files = sorted(f.name for f in (R/'media').iterdir() if f.is_file()) if (R/'media').is_dir() else []
+    script = f"""<script>window.__PAGES__ = true; window.__MEDIA_FILES__ = {js_json(media_files)};</script>
 <script src="peerjs.min.js"></script>
 <script src="mqtt.min.js"></script>
 <script>

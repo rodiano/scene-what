@@ -169,7 +169,7 @@ const ENGINE = (() => {
   function publicMedia() {
     const m = FEST.music || {}, b = FEST.band || {};
     return {
-      music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8 },
+      music: { background: m.background || null, backgroundVolume: m.backgroundVolume ?? 0.35, finale: m.finale || null, finaleVolume: m.finaleVolume ?? 0.8, finaleVideo: m.finaleVideo || null, noVideoProbe: !!m.noVideoProbe },
       band: { members: Array.isArray(b.members) ? b.members.slice(0, 6) : [], image: b.image || null },
     };
   }
