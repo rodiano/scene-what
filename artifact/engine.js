@@ -69,16 +69,18 @@ const ENGINE = (() => {
       id: String(p.id), name: String(p.n || '?').slice(0, 16), avatar: String(p.a || '🙂').slice(0, 12), color: /^#[0-9a-f]{6}$/i.test(p.c) ? p.c : '#888',
       route: p.r, x, y, dir: p.d || 'down', moving: !!p.m, online, solved,
       atStage: solved.includes('finale') && inRect(STAGE.crowd, x, y),
+      admin: !!p.adm,
       _pr: pr,
     };
   }
   function myPresence() {
     return {
-      p: { id: me.pid, n: me.name, a: me.avatar, c: me.color, r: me.route, x: +me.x.toFixed(2), y: +me.y.toFixed(2), d: me.dir, m: me.moving, s: me.solved, q: Object.fromEntries(Object.entries(me.assigned).map(([k, v]) => [k, v.qi])) },
+      p: { id: me.pid, adm: me.admin ? 1 : 0, n: me.name, a: me.avatar, c: me.color, r: me.route, x: +me.x.toFixed(2), y: +me.y.toFixed(2), d: me.dir, m: me.moving, s: me.solved, q: Object.fromEntries(Object.entries(me.assigned).map(([k, v]) => [k, v.qi])) },
       h: me.helps.slice(-4).map((h) => ({ r: h.rid, post: h.post, qi: h.qi, done: h.done, ans: h.ans || '', at: h.at })),
       g: me.sugg.slice(-8),
       ch: me.chat.slice(-6),
       f: me.finale ? 1 : 0,
+      F: me.forceFinale ? 1 : 0, // admin har startet finalen for alle
     };
   }
   let pushT = 0, pushQueued = false;
@@ -215,7 +217,8 @@ const ENGINE = (() => {
     if (me.finale) return;
     // finalen starter, når alle i rummet står ved scenen (eller en anden allerede har startet den)
     const anyFinale = peersPresence().some((pr) => pr.f === 1) && players.find((p) => p.id === me.pid)?.atStage;
-    if ((players.length && players.every((p) => p.atStage)) || anyFinale) {
+    const forced = me.forceFinale || peersPresence().some((pr) => pr.F === 1);
+    if ((players.length && players.every((p) => p.atStage)) || anyFinale || forced) {
       me.finale = true; push();
       const s = snapshot();
       dispatch('finale', { poster: s.poster, teaser: FEST.headlinerTeaser, message: FEST.finaleMessage, players: s.players.map((p) => p.name) });
@@ -315,6 +318,38 @@ const ENGINE = (() => {
         if (ok) { markSolved(post, ansText(q, body.answer)); return { correct: true, stamps: stamps() }; }
         a.wrong++; save();
         return { correct: false, ...qOut(post, q, a) };
+      }
+      case 'admin': {
+        const key = String(FEST.adminKey || '').trim();
+        me.adminTries = (me.adminTries || 0) + 1;
+        if (key.length < 6 || me.adminTries > 10 || String(body.key || '') !== key) err('Forkert admin-nøgle');
+        me.admin = true; push();
+        return { admin: true };
+      }
+      case 'adminSkip': {
+        if (!me.admin) err('Kun for admin');
+        if (!POSTS[post]) err('Ukendt post');
+        markSolved(post, '(sprunget over af admin)');
+        return { correct: true, skipped: true };
+      }
+      case 'adminGoto': {
+        if (!me.admin) err('Kun for admin');
+        const ids = Object.keys(POSTS).filter((k) => POSTS[k].route === me.route);
+        let pos = { x: 24.5, y: 18.5 };
+        if (body.to === 'stage') {
+          const missing = Math.max(0, STAMPS_REQUIRED - stamps());
+          ids.push(...Object.keys(POSTS).filter((k) => POSTS[k].kind === 'station' && !me.solved.includes(k)).slice(0, missing), 'finale');
+          pos = { x: STAGE.x + STAGE.w / 2 - 0.5, y: STAGE.crowd.y + 3.5 };
+        }
+        for (const id of ids) if (!me.solved.includes(id)) me.solved.push(id);
+        for (const h of me.helps) if (ids.includes(h.post) && !h.done) { h.done = true; h.ans = '(sprunget over)'; }
+        me.x = pos.x; me.y = pos.y; push();
+        return { x: pos.x, y: pos.y, solved: [...me.solved] };
+      }
+      case 'adminFinale': {
+        if (!me.admin) err('Kun for admin');
+        me.forceFinale = true; push();
+        return { ok: true };
       }
       case 'skip': {
         const a = me.assigned[post]; if (!a) err('Intet spørgsmål');

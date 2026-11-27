@@ -225,6 +225,7 @@ function connect() {
     for (const h of d.help) if (h.pid === G.pid) G.myHelpRid[h.post] = h.rid;
     renderChat(); renderHelps(); renderPoster(); updateHud();
     setTimeout(() => preloadFinaleVideo(), 4000); // når spillet er kommet i gang
+    activateAdmin();
     if (d.finale && !G.finale) {
       // Finalen er allerede i gang (fx genindlæst side): vis showet, hvis denne fane ikke har set det
       G.finale = d.finale;
@@ -318,6 +319,67 @@ function setPlayers(list, isInit) {
 }
 
 // ====================================================================
+// Admin / dev: ?admin=NØGLE i adressen (nøglen fra ADMIN_KEY eller festival.json → adminKey)
+// ====================================================================
+G.admin = false;
+(function captureAdminKey() {
+  try {
+    const u = new URL(location.href);
+    const key = u.searchParams.get('admin');
+    if (!key) return;
+    tabStore.setItem('festival:adminkey', key);
+    u.searchParams.delete('admin'); // nøglen skal ikke stå i adressen, hvis man deler den
+    history.replaceState(null, '', u.pathname + u.search + u.hash);
+  } catch {}
+})();
+async function activateAdmin() {
+  let key = null;
+  try { key = tabStore.getItem('festival:adminkey'); } catch {}
+  if (!key || G.admin) return;
+  try {
+    await api(`/api/s/${G.code}/admin`, auth({ key }));
+    G.admin = true;
+    $('adminBtn').classList.remove('hidden');
+    toast('🛠️ Admin-tilstand er slået til');
+  } catch (e) {
+    try { tabStore.removeItem('festival:adminkey'); } catch {}
+    toast(`🛠️ ${esc(e.message)}`);
+  }
+}
+async function adminGoto(to) {
+  try {
+    const r = await api(`/api/s/${G.code}/adminGoto`, auth({ to }));
+    G.me.x = r.x; G.me.y = r.y;
+    const me = G.players.get(G.pid);
+    if (me) { me.solved = r.solved; me.x = me.rx = r.x; me.y = me.ry = r.y; }
+    revealAround(r.x, r.y);
+    lastSent.t = 0; // send den nye position med det samme
+    closeModal('adminModal');
+    updateHud();
+    toast(to === 'stage' ? '🎤 Du står foran scenen' : '🎡 Du er på festivalpladsen');
+  } catch (e) { toast(esc(e.message)); }
+}
+async function adminSkipPost(post) {
+  try {
+    await api(`/api/s/${G.code}/adminSkip`, auth({ post }));
+    const me = G.players.get(G.pid);
+    if (me && !me.solved.includes(post)) me.solved.push(post);
+    closeModal('qModal');
+    toast(`⏭ ${esc(POSTS[post].name)} sprunget over`);
+    chime();
+    updateHud();
+  } catch (e) { toast(esc(e.message)); }
+}
+$('adminBtn').onclick = () => { $('admFinale').dataset.armed = ''; $('admFinale').firstChild.textContent = '🎬 Start finalen for alle nu'; openModal('adminModal'); };
+$('admPlaza').onclick = () => adminGoto('plaza');
+$('admStage').onclick = () => adminGoto('stage');
+$('admFinale').onclick = async () => {
+  const b = $('admFinale');
+  if (!b.dataset.armed) { b.dataset.armed = '1'; b.firstChild.textContent = '🎬 Tryk igen for at starte finalen for alle'; return; }
+  try { await api(`/api/s/${G.code}/adminFinale`, auth({})); closeModal('adminModal'); } catch (e) { toast(esc(e.message)); }
+};
+
+// ====================================================================
 // HUD
 // ====================================================================
 function stationIds() { return Object.keys(POSTS).filter((k) => POSTS[k].kind === 'station'); }
@@ -341,7 +403,7 @@ function updateHud() {
   let obj = '';
   if (!me) obj = '';
   else if (G.finale) obj = '🎶 Koncerten er i gang!';
-  else if (solved.has('finale')) obj = '🎤 Gå helt op foran scenen!';
+  else if (solved.has('finale')) obj = G.me && inRect(STAGE.crowd, G.me.x, G.me.y) ? '🎶 Du er ved scenen – venter på holdet' : '🎤 Gå helt op foran scenen!';
   else {
     const route = ROUTES.find((r) => r.id === me.route);
     const routeGates = Object.keys(POSTS).filter((k) => POSTS[k].route === me.route);
@@ -388,7 +450,7 @@ function renderTeam() {
     const status = p.atStage ? '🎤 Ved hovedscenen' : `📍 ${zoneAt(p.x, p.y)}`;
     return `<div class="member">
       <div class="av" style="border-color:${esc(p.color)}">${esc(p.avatar)}</div>
-      <div class="info"><b>${esc(p.name)}${p.id === G.pid ? ' (dig)' : ''}</b>
+      <div class="info"><b>${esc(p.name)}${p.id === G.pid ? ' (dig)' : ''}${p.admin ? ' 🛠️' : ''}</b>
         <small>${esc(status)} · 🎟️ ${Math.min(stamps, need)}/${need}</small></div>
       <div class="dot ${p.online ? 'on' : ''}" title="${p.online ? 'Online' : 'Offline'}"></div>
     </div>`;
@@ -497,7 +559,9 @@ async function openPost(postId) {
     if (r.locked) {
       $('qBody').innerHTML = `<p class="qtext">🛑 "Stop! Kun festivalgæster med mindst ${G.config.stampsRequired} stempler fra festivalpladsens stande må komme forbi."</p>
         <p>Du har ${r.stamps} ${r.stamps === 1 ? 'stempel' : 'stempler'} – du mangler <b>${r.need}</b>.</p>
-        <div class="note">Gå rundt til standene på festivalpladsen (${stationIds().map((k) => POSTS[k].emoji).join(' ')}) og svar på deres spørgsmål.</div>`;
+        <div class="note">Gå rundt til standene på festivalpladsen (${stationIds().map((k) => POSTS[k].emoji).join(' ')}) og svar på deres spørgsmål.</div>
+        ${G.admin ? '<button id="admSkipBtn" class="btn admin-skip">⏭ Lad mig komme forbi (admin)</button>' : ''}`;
+      if (G.admin) $('admSkipBtn').onclick = () => adminSkipPost(postId);
       openModal('qModal');
       return;
     }
@@ -536,7 +600,8 @@ function renderQuestion(feedback = '', fbClass = '') {
       </button>
     </div>
     ${qState.canSkip ? `<div class="note">Vagten kan se, du har kæmpet. <button id="skipBtn" class="btn small">Lad mig komme videre</button></div>` : ''}
-    <div id="suggestBox" class="suggestions"></div>`;
+    <div id="suggestBox" class="suggestions"></div>
+    ${G.admin ? '<button id="admSkipBtn" class="btn admin-skip">⏭ Spring over (admin)</button>' : ''}`;
 
   $('qBody').querySelectorAll('[data-i]').forEach((b) => b.onclick = () => answer(Number(b.dataset.i)));
   const f = $('textAnswer');
@@ -547,6 +612,7 @@ function renderQuestion(feedback = '', fbClass = '') {
   $('hintBtn').onclick = getHint;
   $('askBtn').onclick = askTeam;
   if ($('skipBtn')) $('skipBtn').onclick = skip;
+  if ($('admSkipBtn')) $('admSkipBtn').onclick = () => adminSkipPost(qState.post);
   renderSuggestions();
 }
 
@@ -986,10 +1052,11 @@ function drawPlayer(p, t, isMe) {
   ctx.restore();
   // navneskilt
   ctx.font = 'bold 11px system-ui, sans-serif';
-  const w = ctx.measureText(p.name).width + 10;
+  const label = p.admin ? `🛠️ ${p.name}` : p.name;
+  const w = ctx.measureText(label).width + 10;
   ctx.fillStyle = isMe ? 'rgba(255,79,139,.92)' : 'rgba(27,16,55,.8)';
   roundRect(px - w / 2, py - 30 - bob, w, 15, 7); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.name, px, py - 22.5 - bob);
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, px, py - 22.5 - bob);
   const h = [...G.helps.values()].find((x) => x.pid === p.id && !x.done);
   if (h && !isMe) emoji('🆘', px + w / 2 + 8, py - 23 - bob, 14);
   ctx.globalAlpha = 1;

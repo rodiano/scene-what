@@ -7,6 +7,7 @@
     "  background = loop under hele spillet, finale = loop når bandet går på scenen. Volume er 0-1.",
     "  finaleVideo = video, der vises på scenen i stedet for bandet: et YouTube-link eller en fil (mp4/webm). Står den til null, bruges media/finale-video.mp4 (eller .webm/.mov/.m4v), hvis filen findes – ellers bandet og finale-musikken.",
     "band: navne og farver på bandmedlemmerne på scenen til sidst. image = sti til et PNG-billede (gerne med gennemsigtig baggrund), der vises i stedet for de tegnede figurer.",
+    "adminKey: hemmelig nøgle til admin/dev-rollen. Åbn spillet med ?admin=NØGLE for at kunne springe spørgsmål over og gå direkte til scenen. Tom (\"\") = slået fra. OBS: I GitHub Pages-versionen kan filen læses af alle – brug en nøgle, I ikke bruger andre steder. Node-versionen kan i stedet bruge miljøvariablen ADMIN_KEY.",
     "PLADSHOLDERE: festivalnavn, dato, sted, bands og hovednavn herunder er opdigtede og skal skiftes ud."
   ],
   "festivalName": "SOLSKINSFESTIVALEN",
@@ -25,6 +26,7 @@
   "headlinerTeaser": "Aftenens hemmelige hovednavn er...",
   "finaleMessage": "Tak fordi I hjalp hinanden hele vejen frem. Rock on! 🤘",
   "stampsRequired": 3,
+  "adminKey": "admin-85c1c8ad55",
   "music": {
     "background": "media/demo-baggrund.mp3",
     "backgroundVolume": 0.35,

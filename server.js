@@ -138,6 +138,7 @@ function publicPlayer(p) {
     online: isOnline(p),
     solved: [...p.solved],
     atStage: atStage(p),
+    admin: !!p.admin,
   };
 }
 
@@ -219,11 +220,11 @@ function broadcastPlayers(s) {
   broadcast(s, 'players', { players: [...s.players.values()].map(publicPlayer) });
 }
 
-function checkFinale(s) {
+function checkFinale(s, force = false) {
   if (s.finale) return;
   const online = [...s.players.values()].filter(isOnline);
   if (online.length === 0) return;
-  if (online.every(atStage)) {
+  if (force || online.every(atStage)) {
     s.finale = { at: now() };
     broadcast(s, 'finale', {
       poster: posterView(s),
@@ -290,6 +291,25 @@ function markSolved(s, p, postId, answerShown) {
       broadcast(s, 'helpdone', { rid: h.rid, answer: answerShown });
     }
   }
+}
+
+// ---------- Admin / dev ----------
+// Nøglen sættes med ADMIN_KEY (miljøvariabel) eller adminKey i festival.json. Tom = admin slået fra.
+function adminKey() {
+  const k = String(process.env.ADMIN_KEY || FESTIVAL.adminKey || '').trim();
+  return k.length >= 6 ? k : null;
+}
+const ADMIN_STAGE = { x: STAGE.x + STAGE.w / 2 - 0.5, y: STAGE.crowd.y + 3.5 };
+const ADMIN_PLAZA = { x: 24.5, y: 18.5 };
+// Marker poster som løst uden at spamme holdet med en besked pr. post
+function adminSolve(s, p, ids) {
+  for (const id of ids) {
+    if (!POSTS[id] || p.solved.has(id)) continue;
+    p.solved.add(id);
+    for (const h of s.help.values()) if (h.pid === p.id && h.post === id && !h.done) { h.done = true; broadcast(s, 'helpdone', { rid: h.rid, answer: '(sprunget over)' }); }
+  }
+  s.dirty = true;
+  broadcast(s, 'poster', posterView(s));
 }
 
 // ---------- HTTP ----------
@@ -375,6 +395,8 @@ function serveMedia(req, res, rel) {
     fs.createReadStream(file).pipe(res);
   });
 }
+
+const postIdOf = (body) => String(body.post || '');
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -547,6 +569,43 @@ const server = http.createServer(async (req, res) => {
         }
         a.wrong++;
         return json(res, 200, { correct: false, question: publicQuestion(q, a), canAskTeam: canAskTeam(q, a), canSkip: canSkip(q, a) });
+      }
+
+      case 'admin': {
+        const key = adminKey();
+        p.adminTries = (p.adminTries || 0) + 1;
+        if (!key || p.adminTries > 10 || String(body.key || '') !== key) return json(res, 403, { error: 'Forkert admin-nøgle' });
+        p.admin = true; s.dirty = true;
+        console.log(`🛠️  ${p.name} er admin i spil ${s.id}`);
+        return json(res, 200, { admin: true });
+      }
+      case 'adminSkip': {
+        if (!p.admin) return json(res, 403, { error: 'Kun for admin' });
+        if (!POSTS[postIdOf(body)]) return json(res, 400, { error: 'Ukendt post' });
+        markSolved(s, p, postIdOf(body), '(sprunget over af admin)');
+        return json(res, 200, { correct: true, skipped: true });
+      }
+      case 'adminGoto': {
+        if (!p.admin) return json(res, 403, { error: 'Kun for admin' });
+        const routeGates = Object.keys(POSTS).filter((k) => POSTS[k].route === p.route);
+        const ids = [...routeGates];
+        let pos = ADMIN_PLAZA;
+        if (body.to === 'stage') {
+          const stations = Object.keys(POSTS).filter((k) => POSTS[k].kind === 'station');
+          const missing = Math.max(0, STAMPS_REQUIRED - stampsOf(p));
+          ids.push(...stations.filter((k) => !p.solved.has(k)).slice(0, missing), 'finale');
+          pos = ADMIN_STAGE;
+        }
+        adminSolve(s, p, ids);
+        p.x = pos.x; p.y = pos.y;
+        broadcast(s, 'toast', { text: `🛠️ ${p.name} sprang frem til ${body.to === 'stage' ? 'scenen' : 'festivalpladsen'}` });
+        checkFinale(s);
+        return json(res, 200, { x: pos.x, y: pos.y, solved: [...p.solved] });
+      }
+      case 'adminFinale': {
+        if (!p.admin) return json(res, 403, { error: 'Kun for admin' });
+        checkFinale(s, true);
+        return json(res, 200, { ok: true });
       }
 
       case 'skip': {

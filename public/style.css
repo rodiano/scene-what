@@ -343,3 +343,10 @@ label input { margin-top: 6px; font-weight: 400; }
 /* YouTube: 16:9, så stort som feltet tillader */
 .pov-video iframe { width: min(100cqw, 100cqh * 16 / 9); height: min(100cqh, 100cqw * 9 / 16); background: #000; }
 .pov.video-on .pov-band { display: none; }
+
+/* ---------- Admin ---------- */
+.admin-chip { background: #ffe9b0 !important; }
+.admin-actions { display: grid; gap: 10px; margin: 12px 0; }
+.admin-actions .btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; }
+.admin-actions .btn small { font-weight: 500; font-size: 13px; opacity: 0.8; }
+.admin-skip { margin-top: 10px; width: 100%; background: #ffe9b0; }

@@ -62,6 +62,7 @@
         <button id="posterBtn" class="chip" title="Festivalplakaten">🎤 <span id="posterCount">0</span></button>
         <button id="teamBtn" class="chip">👥 <span id="teamCount">1</span></button>
         <button id="helpBtn" class="chip hidden">🆘 <span id="helpCount" class="badge">0</span></button>
+        <button id="adminBtn" class="chip admin-chip hidden" title="Admin">🛠️</button>
         <button id="muteBtn" class="chip" title="Slå lyd fra">🔊</button>
         <button id="chatBtn" class="chip">💬 <span id="chatBadge" class="badge hidden">0</span></button>
       </div>
@@ -114,6 +115,21 @@
         <p>Inviter flere med koden <b class="code-big" id="teamCode"></b></p>
         <button id="teamShare" class="btn">🔗 Del link</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ADMIN / DEV -->
+  <div id="adminModal" class="modal hidden">
+    <div class="sheet">
+      <button class="close" data-close="adminModal">✕</button>
+      <h3>🛠️ Admin</h3>
+      <p class="muted">Til test og afvikling. Holdet kan se 🛠️ ved dit navn.</p>
+      <div class="admin-actions">
+        <button id="admPlaza" class="btn">🎡 Til festivalpladsen<small>Springer bommene på din rute over</small></button>
+        <button id="admStage" class="btn primary">🎤 Direkte til scenen<small>Springer alt over og stiller dig foran scenen</small></button>
+        <button id="admFinale" class="btn">🎬 Start finalen for alle nu<small>Uden at vente på, at holdet står ved scenen</small></button>
+      </div>
+      <p class="muted">I hvert spørgsmål får du også knappen "⏭ Spring over (admin)".</p>
     </div>
   </div>
 

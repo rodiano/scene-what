@@ -137,6 +137,27 @@ Alt indhold styres fra eksterne filer. Koden skal ikke ændres.
 
 Kør `npm run check` efter ændringer i kortet. Den tjekker, at alle startsteder kan nå scenen.
 
+## Admin / dev-rolle
+
+Til test og afvikling kan en admin springe spørgsmål over og gå direkte til scenen.
+
+1. Sæt en hemmelig nøgle på mindst 6 tegn: `adminKey` i `config/festival.json` eller miljøvariablen `ADMIN_KEY`
+   (kun Node, går forud for filen). Tom nøgle = rollen er slået fra.
+2. Åbn spillet med nøglen i adressen, fx `https://rodiano.github.io/scene-what/?admin=NØGLE`
+   eller `http://localhost:3000/?admin=NØGLE`. Med en spil-kode: `…/?admin=NØGLE#K7QM2X` (Pages) eller
+   `…/?admin=NØGLE&s=K7QM2X` (Node). Nøglen fjernes fra adresselinjen med det samme og huskes i fanen.
+
+Som admin får man:
+- **⏭ Spring over (admin)** i hvert spørgsmål. Ved Scenevagten også uden stempler.
+- **🛠️-knappen** med
+  - *Til festivalpladsen*: springer bommene på ens rute over og flytter en ind på pladsen.
+  - *Direkte til scenen*: springer bomme, stempler og Scenevagten over og stiller en foran scenen.
+  - *Start finalen for alle nu*: starter finalen for hele holdet uden at vente. Kræver to tryk.
+
+Holdet kan se 🛠️ ved admins navn. I Node-versionen tjekkes nøglen på serveren, og forkerte forsøg begrænses.
+I Pages-versionen står nøglen i `config/festival.json`, som alle kan hente, så brug en nøgle, I ikke bruger
+andre steder. Artifact-versionen har ingen adresselinje og derfor ingen admin-rolle.
+
 ## Miljøvariabler
 
 | Variabel | Standard | Betydning |
@@ -149,7 +170,8 @@ Kør `npm run check` efter ændringer i kortet. Den tjekker, at alle startsteder
 | `MAX_SESSIONS` | 500 | Maks samtidige sessioner |
 | `FESTIVAL_CONFIG` | `config/festival.json` | Sti til festivalfilen |
 | `QUESTIONS_CONFIG` | `config/questions.json` | Sti til spørgsmålsfilen |
-| `MEDIA_DIR` | `media` | Mappe med musik og billeder (serveres på `/media/…`) |
+| `MEDIA_DIR` | `media` | Mappe med musik, video og billeder (serveres på `/media/…`) |
+| `ADMIN_KEY` | (fra festival.json) | Hemmelig nøgle til admin/dev-rollen |
 
 ## Hosting
 

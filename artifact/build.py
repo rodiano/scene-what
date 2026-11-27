@@ -12,7 +12,7 @@ def sub(old, new, s, regex=False, count=1):
 game = sub(r"async function api\(path, body\) \{.*?\n\}\n", "const api = (path, body) => ENGINE.api(path, body);\n", game, regex=True)
 game = sub("new EventSource(", "new ENGINE.FakeEventSource(", game)
 game = sub("EventSource.CLOSED", "2", game)
-game = sub(r"history\.replaceState\([^;]*;", "", game, regex=True)
+game = sub(r"history\.replaceState\(null, '', `/\?s=[^;]*;", "", game, regex=True)  # kun Node-versionens ?s=-links
 game = sub(r"async function share\(code\) \{.*?\n\}\n", """async function share(code) {
   if (window.__PAGES__) {
     const url = location.origin + location.pathname + '#' + code;
