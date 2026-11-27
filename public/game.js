@@ -103,13 +103,18 @@ const mySolved = () => new Set(G.players.get(G.pid)?.solved || []);
 const params = new URLSearchParams(location.search);
 const urlCode = (params.get('s') || location.pathname.split('/s/')[1] || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 if (urlCode) $('codeInput').value = urlCode;
-// Kommer man fra et delt link eller en QR-kode, går man direkte til karaktervalg
-if (urlCode && !loadCreds(urlCode)) {
-  $('lobbyError').textContent = '⏳ Forbinder til spillet…';
-  gotoCharacter(urlCode).catch((e) => { showScreen('lobby'); $('lobbyError').textContent = e.message; });
+// Lobbyen startes først, når julegaven er pakket op (se giftGate nederst)
+function startLobby() {
+  showScreen('lobby');
+  // Kommer man fra et delt link eller en QR-kode, går man direkte til karaktervalg
+  if (urlCode && !loadCreds(urlCode)) {
+    $('lobbyError').textContent = '⏳ Forbinder til spillet…';
+    gotoCharacter(urlCode).catch((e) => { showScreen('lobby'); $('lobbyError').textContent = e.message; });
+  }
+  checkResume();
 }
 
-(function checkResume() {
+function checkResume() {
   const code = urlCode || (() => { try { return tabStore.getItem('festival:last'); } catch { return null; } })();
   if (!code) return;
   const c = loadCreds(code);
@@ -119,7 +124,7 @@ if (urlCode && !loadCreds(urlCode)) {
     $('resumeCode').textContent = code;
     $('resumeBtn').onclick = () => startGame(code, c);
   }).catch(() => {});
-})();
+}
 
 $('createBtn').onclick = async () => {
   $('lobbyError').textContent = '';
@@ -1416,6 +1421,7 @@ function videoElement(src) {
     el = document.createElement('video');
     el.playsInline = true; el.loop = true; el.preload = 'auto';
     el.setAttribute('playsinline', '');
+    el.addEventListener('loadedmetadata', () => { if (el.videoWidth && el.videoHeight) box.style.setProperty('--ar', el.videoWidth / el.videoHeight); });
     el.src = PRELOAD.url || src;
     box.replaceChildren(el);
   } else if (PRELOAD.url && el.src !== PRELOAD.url && el.paused) {
@@ -2045,3 +2051,97 @@ function startMusic() {
   };
   tick();
 }
+
+// ====================================================================
+// Julegaven: pakkes op med en fælles kode, før spillet starter
+// ====================================================================
+const GIFT_KEY = 'festival:gift';
+function giftSnow() {
+  const cv = $('snow'), c = cv.getContext('2d');
+  const flakes = Array.from({ length: 110 }, () => ({ x: Math.random(), y: Math.random(), r: 0.8 + Math.random() * 2.6, s: 0.04 + Math.random() * 0.08, w: Math.random() * 6.3 }));
+  const sparks = [];
+  giftSnow.burst = (n) => {
+    const r = $('giftBox').getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height * 0.45;
+    const cols = ['#f2c14e', '#fff1c2', '#ff4f6d', '#7fe0a1', '#ffffff'];
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, v = 120 + Math.random() * 520;
+      sparks.push({ x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 200, life: 1.4 + Math.random() * 1.2, c: cols[i % cols.length], star: i % 3 === 0 });
+    }
+  };
+  let last = performance.now();
+  const tick = (t) => {
+    if (!$('gift').classList.contains('active')) return;
+    const dt = Math.min(0.05, (t - last) / 1000); last = t;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), W = innerWidth, H = innerHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = 'rgba(255,255,255,0.85)';
+    for (const f of flakes) {
+      f.y += f.s * dt; f.x += Math.sin(t / 1400 + f.w) * 0.0004;
+      if (f.y > 1.02) { f.y = -0.02; f.x = Math.random(); }
+      c.globalAlpha = 0.4 + f.r / 5;
+      c.beginPath(); c.arc(f.x * W, f.y * H, f.r, 0, 7); c.fill();
+    }
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const p = sparks[i];
+      p.vy += 420 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.99; p.life -= dt;
+      c.globalAlpha = Math.max(0, Math.min(1, p.life)); c.fillStyle = p.c;
+      if (p.star) { c.font = '16px sans-serif'; c.fillText('✨', p.x, p.y); } else c.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+      if (p.life <= 0) sparks.splice(i, 1);
+    }
+    c.globalAlpha = 1;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function jingle() { // "Jingle Bells" (folkemelodi) på klokker
+  const E = 659.3, G5 = 784, C = 523.3, D = 587.3;
+  [[E, 0], [E, 0.18], [E, 0.36], [E, 0.72], [E, 0.9], [E, 1.08], [E, 1.44], [G5, 1.62], [C, 1.8], [D, 2.0], [E, 2.2]]
+    .forEach(([f, t], i) => { tone(f, i === 10 ? 1.2 : 0.35, 'sine', 0.16, t); tone(f * 2, 0.25, 'triangle', 0.05, t); });
+}
+function unwrapGift(version) {
+  try { localStorage.setItem(GIFT_KEY, version); } catch {}
+  $('giftError').textContent = '';
+  $('giftCode').blur();
+  document.querySelector('.gift-stage').classList.add('opening');
+  $('giftBox').classList.add('open');
+  jingle();
+  setTimeout(() => giftSnow.burst?.(160), 850);
+  setTimeout(() => { $('giftCard').hidden = false; $('giftStart').focus(); }, 2000);
+  $('giftStart').onclick = () => { $('giftCard').hidden = true; startLobby(); };
+}
+async function giftGate() {
+  let info;
+  try { info = await api('/api/gift'); } catch { info = { enabled: false }; }
+  let opened = null;
+  try { opened = localStorage.getItem(GIFT_KEY); } catch {}
+  if (!info.enabled || opened === info.version) return startLobby();
+  $('giftIntro').textContent = info.intro;
+  $('giftHint').textContent = info.needsCode ? info.hint : 'Tryk på gaven for at pakke den op';
+  $('giftTitle').textContent = info.title;
+  $('giftMessage').textContent = info.message;
+  $('giftStart').textContent = `${info.button} ▶`;
+  if (!info.needsCode) $('giftForm').querySelector('.row').hidden = true;
+  showScreen('gift');
+  giftSnow();
+  let busy = false;
+  const tryOpen = async () => {
+    if (busy || $('giftBox').classList.contains('open')) return;
+    busy = true;
+    initAudio();
+    try {
+      const r = await api('/api/gift', { code: $('giftCode').value });
+      unwrapGift(r.version);
+    } catch (err) {
+      $('giftError').textContent = err.message;
+      const box = $('giftBox'); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+      setTimeout(() => box.classList.remove('shake'), 520);
+      tone(196, 0.25, 'square', 0.05);
+    }
+    busy = false;
+  };
+  $('giftForm').onsubmit = (e) => { e.preventDefault(); tryOpen(); };
+  $('giftBox').onclick = () => { if (info.needsCode && !$('giftCode').value.trim()) $('giftCode').focus(); else tryOpen(); };
+}
+giftGate();

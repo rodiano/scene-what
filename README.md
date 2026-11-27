@@ -19,6 +19,27 @@ npm start            # eller: node server.js
 Åbn http://localhost:3000, og tryk **Start et nyt spil**. Del koden (fx `K7QM2X`) eller linket
 `http://…/?s=K7QM2X` med de andre spillere.
 
+## Julegaven (første skærm)
+
+Spillet starter som en indpakket julegave med snefald. Man indtaster en fælles kode, og så går sløjfen op,
+låget flyver af, og der kommer lys, glimmer og "Jingle Bells". Ud af æsken stiger et julekort med en hilsen,
+og "Start spillet" fører videre til spillet. Forkert kode får gaven til at ryste.
+
+Indstilles i `config/festival.json` under `gift`:
+
+| Felt | Betydning |
+|---|---|
+| `code` | Koden, ens for alle. Store/små bogstaver og mellemrum er ligegyldige. Tom (`""`) = gaven åbnes med et tryk. |
+| `intro`, `hint` | Teksten over gaven og ved kodefeltet. |
+| `title`, `message`, `button` | Julekortet, der kommer frem, og knappen til at starte spillet. |
+
+- Fjern hele `gift`-blokken for at springe gaven over.
+- Har man pakket gaven op én gang på en enhed, går man direkte videre næste gang. Skifter I koden, skal gaven
+  pakkes op igen.
+- Links og QR-koder til et spil viser også gaven først og går derefter direkte til karaktervalget.
+- I Node-versionen sendes koden aldrig til browseren. I Pages-versionen står den i `config/festival.json`, som
+  alle kan hente.
+
 ## Spillets gang
 
 1. **Session:** Én spiller opretter spillet og får en kode på 6 tegn. Kun dem med koden kommer ind.

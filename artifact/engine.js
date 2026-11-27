@@ -254,6 +254,17 @@ const ENGINE = (() => {
   // ---------- "API" ----------
   async function api(path, body) {
     const parts = path.split('/').filter(Boolean); // api, s, CODE, action
+    if (parts[1] === 'gift') { // julegaven (koden står i festival.json)
+      const g = FEST.gift;
+      const norm = (c) => String(c ?? '').toUpperCase().replace(/\s+/g, '');
+      if (!g || typeof g !== 'object') return { enabled: false };
+      const code = norm(g.code);
+      let h = 5381; for (const ch of 'gift:' + code) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+      const info = { enabled: true, needsCode: !!code, version: h.toString(16), intro: g.intro || 'Du har fået en julegave! 🎁', hint: g.hint || 'Indtast koden for at pakke den op', title: g.title || 'Glædelig jul! 🎄', message: g.message || '', button: g.button || 'Start spillet' };
+      if (body === undefined) return info;
+      if (!code || norm(body.code) === code) return { ok: true, version: info.version };
+      err('Det var ikke den rigtige kode – prøv igen');
+    }
     if (parts[1] === 'sessions') { const c = newCode(); await joinRoom(c); return { id: c, maxPlayers: MAX_PLAYERS }; }
     const c = String(parts[2] || '').toUpperCase();
     if (!/^[A-Z0-9]{4,8}$/.test(c)) err('Ugyldig kode');

@@ -291,6 +291,26 @@ function markSolved(s, p, postId, answerShown) {
   }
 }
 
+// ---------- Julegaven ----------
+// Koden sendes aldrig til browseren; kun teksterne og et "versionsnummer" (hash), så en ny kode låser gaven igen.
+const normGift = (c) => String(c ?? '').toUpperCase().replace(/\s+/g, '');
+function giftInfo() {
+  const g = FESTIVAL.gift;
+  if (!g || typeof g !== 'object') return { enabled: false };
+  const code = normGift(g.code);
+  return {
+    enabled: true,
+    needsCode: !!code,
+    version: crypto.createHash('sha256').update('gift:' + code).digest('hex').slice(0, 12),
+    intro: g.intro || 'Du har fået en julegave! 🎁',
+    hint: g.hint || 'Indtast koden for at pakke den op',
+    title: g.title || 'Glædelig jul! 🎄',
+    message: g.message || '',
+    button: g.button || 'Start spillet',
+  };
+}
+const giftTries = new Map(); // ip -> { n, t }
+
 // ---------- Admin / dev ----------
 // Nøglen sættes med ADMIN_KEY (miljøvariabel) eller adminKey i festival.json. Tom = admin slået fra.
 function adminKey() {
@@ -408,6 +428,21 @@ const server = http.createServer(async (req, res) => {
       if (sessions.size >= MAX_SESSIONS) return json(res, 503, { error: 'Serveren er fuld lige nu. Prøv igen senere.' });
       const s = createSession();
       return json(res, 200, { id: s.id, maxPlayers: MAX_PLAYERS });
+    }
+
+    // GET /api/gift -> tekster   POST /api/gift {code} -> åbn gaven
+    if (parts[1] === 'gift') {
+      if (req.method === 'GET') return json(res, 200, giftInfo());
+      if (req.method !== 'POST') return json(res, 405, { error: 'Metode ikke tilladt' });
+      const ip = req.socket.remoteAddress || '';
+      const tr = giftTries.get(ip) || { n: 0, t: now() };
+      if (now() - tr.t > 60_000) { tr.n = 0; tr.t = now(); }
+      tr.n++; giftTries.set(ip, tr);
+      if (tr.n > 20) return json(res, 429, { error: 'For mange forsøg – vent et minut' });
+      const body = await readBody(req);
+      const info = giftInfo();
+      if (!info.enabled || !info.needsCode || normGift(body.code) === normGift(FESTIVAL.gift.code)) return json(res, 200, { ok: true, version: info.version });
+      return json(res, 403, { error: 'Det var ikke den rigtige kode – prøv igen' });
     }
 
     if (parts[1] !== 's' || !parts[2]) return json(res, 404, { error: 'Ukendt' });

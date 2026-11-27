@@ -10,7 +10,34 @@
 </head>
 <body>
   <!-- LOBBY -->
-  <section id="lobby" class="screen active">
+  <!-- JULEGAVEN: pakkes op med en kode, før spillet starter -->
+  <section id="gift" class="screen">
+    <canvas id="snow"></canvas>
+    <div class="gift-stage">
+      <p class="gift-intro" id="giftIntro">Du har fået en julegave! 🎁</p>
+      <div class="giftbox" id="giftBox" role="img" aria-label="En indpakket julegave">
+        <div class="gb-glow"></div>
+        <div class="gb-body"><div class="gb-ribbon-v"></div><div class="gb-ribbon-h"></div><div class="gb-tag">Til dig</div></div>
+        <div class="gb-lid"><div class="gb-ribbon-v"></div><div class="gb-bow"><i></i><i></i><b></b></div></div>
+      </div>
+      <form id="giftForm" class="gift-form" autocomplete="off">
+        <p class="gift-hint" id="giftHint">Indtast koden for at pakke den op</p>
+        <div class="row">
+          <input id="giftCode" placeholder="Kode" autocapitalize="characters" spellcheck="false" />
+          <button class="btn primary">🎁 Pak op</button>
+        </div>
+        <p id="giftError" class="error"></p>
+      </form>
+    </div>
+    <div class="gift-card" id="giftCard" hidden>
+      <div class="gc-holly">🎁</div>
+      <h2 id="giftTitle">Glædelig jul!</h2>
+      <p id="giftMessage"></p>
+      <button id="giftStart" class="btn primary big">Start spillet</button>
+    </div>
+  </section>
+
+  <section id="lobby" class="screen">
     <div class="card hero">
       <div class="logo">🎪</div>
       <h1>Festivalspillet</h1>

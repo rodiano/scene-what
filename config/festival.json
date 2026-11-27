@@ -8,6 +8,7 @@
     "  finaleVideo = video, der vises på scenen i stedet for bandet: et YouTube-link eller en fil (mp4/webm). Står den til null, bruges media/finale-video.mp4 (eller .webm/.mov/.m4v), hvis filen findes – ellers bandet og finale-musikken.",
     "band: navne og farver på bandmedlemmerne på scenen til sidst. image = sti til et PNG-billede (gerne med gennemsigtig baggrund), der vises i stedet for de tegnede figurer.",
     "adminKey: hemmelig nøgle til admin/dev-rollen. Åbn spillet med ?admin=NØGLE for at kunne springe spørgsmål over og gå direkte til scenen. Tom (\"\") = slået fra. OBS: I GitHub Pages-versionen kan filen læses af alle – brug en nøgle, I ikke bruger andre steder. Node-versionen kan i stedet bruge miljøvariablen ADMIN_KEY.",
+    "gift: julegaven, der skal pakkes op med en kode, før spillet starter. code er ens for alle (store/små bogstaver og mellemrum er ligegyldige). Tom code (\"\") = gaven åbnes med et tryk. Fjern hele gift-blokken for at springe gaven over. Skifter I koden, skal gaven pakkes op igen.",
     "PLADSHOLDERE: festivalnavn, dato, sted, bands og hovednavn herunder er opdigtede og skal skiftes ud."
   ],
   "festivalName": "SOLSKINSFESTIVALEN",
@@ -26,13 +27,21 @@
   "headlinerTeaser": "Aftenens hemmelige hovednavn er...",
   "finaleMessage": "Tak fordi I hjalp hinanden hele vejen frem. Rock on! 🤘",
   "stampsRequired": 3,
+  "gift": {
+    "code": "JUL2026",
+    "intro": "Du har fået en julegave! 🎁",
+    "hint": "Indtast koden for at pakke den op",
+    "title": "Glædelig jul! 🎄",
+    "message": "Tillykke med julegaven! Men den rigtige gave ligger ikke i æsken. Den skal du finde via spillet – sammen med dine medspillere. Løs opgaverne på festivalen, hjælp hinanden, og find vej helt op til den store scene. Dér venter gaven.",
+    "button": "Start spillet"
+  },
   "adminKey": "admin-85c1c8ad55",
   "music": {
     "background": "media/demo-baggrund.mp3",
     "backgroundVolume": 0.35,
-    "finale": "media/demo-finale.mp3",
+    "finale": null,
     "finaleVolume": 0.8,
-    "finaleVideo": null
+    "finaleVideo": "media/demo-finale.mp4"
   },
   "band": {
     "members": [
