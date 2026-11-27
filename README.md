@@ -95,7 +95,12 @@ Alt indhold styres fra eksterne filer. Koden skal ikke ændres.
   står foran scenen. `lineup` afsløres bogstav for bogstav undervejs. Skriv ikke hovednavnet i `lineup`.
 - **Musik:** Læg jeres filer i `media/`, og skriv stien i `music`. `background` looper under hele spillet og tones ud,
   når lyset dæmpes i finalen. `finale` looper, når bandet går på scenen. Et fuldt `https://`-link virker også.
-  Sæt et felt til `null` for at slå det fra. Uden `finale` bruges den indbyggede syntetiske musik. Lyden starter
+  Sæt et felt til `null` for at slå det fra.
+  **Lyden kommer fra scenen:** Musikken under spillet lyder, som om den spiller fra hovedscenen. Den bliver
+  højere og klarere, jo tættere man kommer, og svagere og mere dump langt væk (ned til 10 %). Retningen høres
+  i stereo. Bløde lydbølger fra scenen viser, hvor lyden kommer fra. I finalen spiller den for fuld styrke.
+  Afstand, dæmpning og retning kræver, at filen ligger på samme adresse som spillet (fx i `media/`). Ved et link
+  til en anden side styres kun lydstyrken (og på iPhone slet ikke). Uden `finale` bruges den indbyggede syntetiske musik. Lyden starter
   ved første tryk på siden (browsernes regel), og 🔊-knappen slår den fra og til. Demo-filerne
   `media/demo-*.mp3` er lavet med `tools/make-demo-music.py` og må frit udskiftes.
 - **Bandet på scenen:** `members` er 1–6 medlemmer med `role` (`guitar`, `bas`, `vokal`, `trommer` eller `keys`),

@@ -1816,6 +1816,7 @@ function update(dt) {
 
   sendMove();
   stageCheck();
+  spatialAudio();
 }
 
 let lastSent = { x: 0, y: 0, moving: false, t: 0 }, sending = false;
@@ -2022,6 +2023,21 @@ function drawPlayer(p, t, isMe) {
   ctx.globalAlpha = 1;
 }
 
+// Bløde lydbølger fra scenen, når musikken spiller – viser, hvor lyden kommer fra
+function drawSoundWaves(t) {
+  const playing = [MUSIC.bg, MUSIC.fin].some((a) => a && !a.paused && !a._stopping && (a !== MUSIC.fin || a._live));
+  if (!playing || MUSIC.muted) return;
+  const cx = SOUND_SOURCE.x * TILE, cy = (STAGE.y + STAGE.h) * TILE;
+  ctx.save();
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 4; i++) {
+    const k = ((t / 2600) + i / 4) % 1;
+    ctx.strokeStyle = `rgba(255, 210, 122, ${(1 - k) * 0.35})`;
+    ctx.beginPath(); ctx.arc(cx, cy, TILE * (1 + k * 9), 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawStageCover(t) {
   const x = STAGE.x * TILE, y = STAGE.y * TILE, w = STAGE.w * TILE, h = STAGE.h * TILE;
   ctx.fillStyle = '#1d2b4a'; ctx.fillRect(x, y, w, h);
@@ -2118,6 +2134,7 @@ function render(t, dt) {
 
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!hiddenStage(x, y)) drawGround(MAP[y][x], x, y, x * TILE, y * TILE);
   if (!stageOpen) drawStageCover(t); // presenningen ses altid – som et mysterium
+  drawSoundWaves(t);
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!hiddenStage(x, y)) drawObject(MAP[y][x], x, y, x * TILE, y * TILE, t);
   if (G.finale) drawConcert(t);
 
@@ -2486,9 +2503,29 @@ function musicCfg() { return G.config?.music || {}; }
 function makeTrack(src, vol) {
   if (!src) return null;
   const a = new Audio(src);
-  a.loop = true; a.preload = 'auto'; a.volume = vol; a._vol = vol; a.muted = MUSIC.muted;
+  a.loop = true; a.preload = 'auto'; a._vol = vol; a.muted = MUSIC.muted;
+  a.volume = 0; // niveauet styres af spatialAudio()
   a.addEventListener('error', () => console.warn('Kunne ikke afspille', src));
+  routeTrack(a);
   return a;
+}
+// Lyd fra samme adresse sendes gennem Web Audio: lydstyrke, diskant-dæmpning og stereo-retning.
+// (Lyd fra andre adresser kan browseren ikke bearbejde uden CORS – dér styres kun lydstyrken.)
+function routeTrack(a) {
+  initAudio();
+  if (!AC || a._node) return;
+  try {
+    if (new URL(a.src, location.href).origin !== location.origin) return;
+    const src = AC.createMediaElementSource(a);
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 20000; lp.Q.value = 0.5;
+    const pan = AC.createStereoPanner ? AC.createStereoPanner() : null;
+    const g = AC.createGain(); g.gain.value = 0;
+    src.connect(lp);
+    (pan ? lp.connect(pan) : lp).connect(g);
+    g.connect(masterOut());
+    a._node = { g, lp, pan };
+    a.volume = 1;
+  } catch (e) { console.warn('Lyd uden rumklang:', e.message); }
 }
 function fade(a, to, ms, done) {
   if (!a) return done?.();
@@ -2500,34 +2537,80 @@ function fade(a, to, ms, done) {
   };
   step();
 }
+function setTrackLevel(a, vol, pan = 0, lpHz = 20000, smooth = 0.25) {
+  if (a._node && AC) {
+    const t = AC.currentTime;
+    a._node.g.gain.setTargetAtTime(vol, t, smooth);
+    a._node.lp.frequency.setTargetAtTime(lpHz, t, smooth);
+    if (a._node.pan) a._node.pan.pan.setTargetAtTime(pan, t, smooth);
+  } else {
+    a.volume = Math.max(0, Math.min(1, vol));
+  }
+}
+
+// ---- Lyden kommer fra scenen ----
+// Jo tættere på hovedscenen, jo højere og klarere; langt væk er den svag og dump.
+// Retningen høres i stereo (scenen til venstre = lyd mest fra venstre).
+const SOUND_SOURCE = { x: STAGE.x + STAGE.w / 2, y: STAGE.crowd.y + 2 }; // midt foran scenen
+const SOUND_NEAR = 5, SOUND_FAR = 38, SOUND_MIN = 0.1;
+function stageSoundAt(x, y) {
+  const dx = SOUND_SOURCE.x - x, dy = SOUND_SOURCE.y - y;
+  const d = Math.hypot(dx, dy);
+  const t = Math.max(0, Math.min(1, (d - SOUND_NEAR) / (SOUND_FAR - SOUND_NEAR)));
+  const near = Math.pow(1 - t, 1.6);
+  return {
+    d,
+    mul: SOUND_MIN + (1 - SOUND_MIN) * near,
+    pan: Math.max(-0.75, Math.min(0.75, dx / 14)) * Math.min(1, d / 6), // helt tæt på: lyd fra alle sider
+    lp: 700 + (20000 - 700) * near * near,
+  };
+}
+function spatialAudio() {
+  for (const a of [MUSIC.bg, MUSIC.fin]) {
+    if (!a || a._stopping || (a === MUSIC.fin && !a._live)) continue;
+    if (POV.active || !G.me) { setTrackLevel(a, a._vol); continue; } // i finalen: fuld lyd lige foran
+    const s = stageSoundAt(G.me.x, G.me.y);
+    setTrackLevel(a, a._vol * s.mul, s.pan, s.lp);
+    if (window.__lydDebug) window.__lydDebug = { d: +s.d.toFixed(1), mul: +s.mul.toFixed(2), pan: +s.pan.toFixed(2), lp: Math.round(s.lp), src: a.src.split('/').pop(), graf: !!a._node };
+  }
+}
+try { if (new URLSearchParams(location.search).get('debug') === 'lyd') window.__lydDebug = {}; } catch {}
+
 // kaldes ved første tryk/tast (browsere kræver det, før lyd må spille)
 function unlockMusic() {
   if (MUSIC.unlocked || !G.code || !G.config?.music || MUSIC.muted) return;
   const m = musicCfg();
   MUSIC.unlocked = true;
+  initAudio();
+  AC?.resume?.().catch(() => {});
   if (m.background && !G.finale) {
     MUSIC.bg = makeTrack(m.background, clampVol(m.backgroundVolume, 0.35));
+    spatialAudio();
     MUSIC.bg.play().catch(() => { MUSIC.unlocked = false; MUSIC.bg = null; });
   }
-  if (m.finale && !MUSIC.fin) { // "lås op" til senere (iOS)
-    MUSIC.fin = makeTrack(m.finale, clampVol(m.finaleVolume, 0.8));
-    const v = MUSIC.fin.volume; MUSIC.fin.volume = 0;
-    MUSIC.fin.play().then(() => { if (!MUSIC.fin._live) { MUSIC.fin.pause(); MUSIC.fin.currentTime = 0; MUSIC.fin.volume = v; } }).catch(() => { MUSIC.fin.volume = v; });
+  if (m.finale && !MUSIC.fin) { // "lås op" til senere (iOS) – lydløst, da niveauet er 0, indtil bandet spiller
+    const f = (MUSIC.fin = makeTrack(m.finale, clampVol(m.finaleVolume, 0.8)));
+    f.play().then(() => { if (!f._live) { f.pause(); f.currentTime = 0; } }).catch(() => {});
   }
 }
 addEventListener('pointerdown', unlockMusic);
 addEventListener('keydown', unlockMusic);
+// vågn lydsystemet, hvis browseren har sat det på pause
+for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { if (AC && AC.state === 'suspended') AC.resume().catch(() => {}); });
 function stopBackgroundMusic(ms = 1500) {
   const a = MUSIC.bg; MUSIC.bg = null;
-  fade(a, 0, ms, () => a?.pause());
+  if (!a) return;
+  a._stopping = true;
+  if (a._node && AC) { a._node.g.gain.setTargetAtTime(0, AC.currentTime, ms / 3000); setTimeout(() => a.pause(), ms); }
+  else fade(a, 0, ms, () => a.pause());
 }
 function startFinaleTrack() {
   const m = musicCfg();
   if (m.finale) {
     if (!MUSIC.fin) MUSIC.fin = makeTrack(m.finale, clampVol(m.finaleVolume, 0.8));
     MUSIC.fin._live = true;
-    MUSIC.fin.volume = MUSIC.fin._vol;
     MUSIC.fin.currentTime = 0;
+    spatialAudio();
     MUSIC.fin.play().catch(() => startMusic());
   } else startMusic(); // ingen fil: brug den indbyggede syntetiske musik
 }
